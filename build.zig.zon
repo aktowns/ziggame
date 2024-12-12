@@ -27,6 +27,10 @@
             .url = "git+https://github.com/Not-Nik/raylib-zig?ref=devel#de8c2d458516fc971f0859c4473e3381767d2471",
             .hash = "122058d3ea6318efb819d0bffba630afd1a459fa3a99b4bfe4b680a937d5de04d2fc",
         },
+        .sokol = .{
+            .url = "git+https://github.com/floooh/sokol-zig.git#88f248062c709807e95c5f5b9bcfe3348d2f8297",
+            .hash = "12204ed5ca9d06c51dfd153ec689defdc34d877fb5532f1966226cc9975aa3a4be5f",
+        },
     },
     .paths = .{
         "build.zig",

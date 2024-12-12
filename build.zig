@@ -15,14 +15,10 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const raylib_dep = b.dependency("raylib-zig", .{
+    const dep_sokol = b.dependency("sokol", .{
         .target = target,
         .optimize = optimize,
     });
-
-    const raylib = raylib_dep.module("raylib"); // main raylib module
-    const raygui = raylib_dep.module("raygui"); // raygui module
-    const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
 
     const lib = b.addStaticLibrary(.{
         .name = "test",
@@ -45,10 +41,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    exe.root_module.addImport("sokol", dep_sokol.module("sokol"));
+
     exe.linkLibC();
-    exe.linkLibrary(raylib_artifact);
-    exe.root_module.addImport("raylib", raylib);
-    exe.root_module.addImport("raygui", raygui);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -103,3 +98,4 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_exe_unit_tests.step);
 }
+
