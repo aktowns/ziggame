@@ -8,6 +8,7 @@ const stm = sokol.time;
 const sshape = sokol.shape;
 const za = @import("zalgebra");
 const std = @import("std");
+const shd = @import("shaders/test.glsl.zig");
 
 const Vec3 = za.Vec3;
 const Vec2 = za.Vec2;
@@ -70,9 +71,10 @@ export fn init() void {
 
     const pip_desc = sg.PipelineDesc {
         .layout = {
-            .attrs[0].format = sg.VertexFormat.FLOAT2;
-            .attrs[1].format = sg.VertexFormat.UBYTE4N;
+            .attrs[shd.ATTR_primtypes_position].format = sg.VertexFormat.FLOAT2;
+            .attrs[shd.ATTR_primtypes_color0].format = sg.VertexFormat.UBYTE4N;
         },
+        .shader = sg.makeShader(shd.primtypesShaderDesc(sg.queryBackend())),
         .depth = .{
             .write_enabled = true,
             .compare = sg.CompareFunc.LESS_EQUAL
