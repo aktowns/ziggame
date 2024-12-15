@@ -23,13 +23,13 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        .@"raylib-zig" = .{
-            .url = "git+https://github.com/Not-Nik/raylib-zig?ref=devel#de8c2d458516fc971f0859c4473e3381767d2471",
-            .hash = "122058d3ea6318efb819d0bffba630afd1a459fa3a99b4bfe4b680a937d5de04d2fc",
-        },
         .sokol = .{
             .url = "git+https://github.com/floooh/sokol-zig.git#88f248062c709807e95c5f5b9bcfe3348d2f8297",
             .hash = "12204ed5ca9d06c51dfd153ec689defdc34d877fb5532f1966226cc9975aa3a4be5f",
+        },
+        .zalgebra = .{
+            .url = "git+https://github.com/kooparse/zalgebra.git#0ff2b6093a410b26a294d4ed53985882256072a1",
+            .hash = "1220fbbcfa859f668d69b4f7d2aa621d13b128a77b46965e6c4aae35f9c1d7b85eb8",
         },
     },
     .paths = .{
