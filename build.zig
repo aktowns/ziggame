@@ -69,17 +69,19 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
     exe.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/"));
     exe.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/webgpu/"));
 
-    const dep_glfw = b.dependency("mach_glfw", .{ .target = target, .optimize = optimize });
-    gpu_lib.addImport("mach-glfw", dep_glfw.module("mach-glfw"));
-
     // const gpu_lib = b.addStaticLibrary(.{ .name = "gpu", .root_source_file = b.path("src/gpu.zig"), .target = target, .optimize = optimize });
     gpu_lib.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/"));
     gpu_lib.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/webgpu/"));
     gpu_lib.addLibraryPath(b.path("ext/wgpu-macos-aarch64-debug/lib/"));
     gpu_lib.linkSystemLibrary("wgpu_native", .{ .preferred_link_mode = .static });
+    gpu_lib.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
     gpu_lib.linkFramework("CoreFoundation", .{});
     gpu_lib.linkFramework("Metal", .{});
     gpu_lib.linkFramework("QuartzCore", .{});
+
+    gpu_lib.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+
+    exe.root_module.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
 
     // b.installArtifact(gpu_lib);
 
