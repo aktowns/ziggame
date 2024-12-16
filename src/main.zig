@@ -1,27 +1,17 @@
-const sokol = @import("sokol");
-const slog = sokol.log;
-const sg = sokol.gfx;
-const sapp = sokol.app;
-const sdtx = sokol.debugtext;
-const sglue = sokol.glue;
-const stm = sokol.time;
-const sshape = sokol.shape;
 const za = @import("zalgebra");
 const std = @import("std");
-const shd = @import("shaders/test.glsl.zig");
 
 const Vec3 = za.Vec3;
 const Vec2 = za.Vec2;
+
+const g = @import("gpu");
 
 const Rectangle = struct {
     position: Vec2,
     size: Vec2,
 
     fn new(x: f32, y: f32, w: f32, h: f32) Rectangle {
-        return Rectangle {
-            .position = Vec2.new(x, y),
-            .size = Vec2.new(w, h)
-        };
+        return Rectangle{ .position = Vec2.new(x, y), .size = Vec2.new(w, h) };
     }
 
     fn zero() Rectangle {
@@ -43,109 +33,97 @@ const Entity = struct {
 };
 
 pub fn MakeEntity(position: @Vector(2, f32), size: Vec2) Entity {
-    return Entity { position, size };
+    return Entity{ position, size };
 }
 
 const kScreenWidth = 800;
 const kScreenHeight = 600;
 
-const state = struct {
-    var pass_action = sg.PassAction {};
-    var time_stamp: u64 = 0;
-    var prim = struct {
-        ibuf: sg.Buffer,
-        pip: sg.Pipeline
-    };
-};
+// const state = struct {
+//     var pass_action = sg.PassAction{};
+//     var time_stamp: u64 = 0;
+//     var prim = struct { ibuf: sg.Buffer, pip: sg.Pipeline };
+// };
 
-export fn init() void {
-    stm.setup();
-    sg.setup(.{
-        .environment = sglue.environment(),
-        .logger = .{ .func = slog.func }
-    });
+// export fn init() void {
+//     stm.setup();
+//     sg.setup(.{ .environment = sglue.environment(), .logger = .{ .func = slog.func } });
+//
+//     var sdtx_desc = sdtx.Desc{ .logger = .{ .func = slog.func } };
+//     sdtx_desc.fonts[0] = sdtx.fontKc853();
+//     sdtx.setup(sdtx_desc);
+//
+//     const pip_desc = sg.PipelineDesc{
+//         .layout = {
+//             .attrs[shd.ATTR_primtypes_position].format = sg.VertexFormat.FLOAT2;
+//             .attrs[shd.ATTR_primtypes_color0].format = sg.VertexFormat.UBYTE4N;
+//         },
+//         .shader = sg.makeShader(shd.primtypesShaderDesc(sg.queryBackend())),
+//         .depth = .{ .write_enabled = true, .compare = sg.CompareFunc.LESS_EQUAL },
+//         .index_type = sg.IndexType.UINT16,
+//         .primitive_type = sg.PrimitiveType.LINES,
+//     };
+//
+//     state.prim.ibuf = sg.makeBuffer();
+//     _ = sg.makePipeline(pip_desc);
+//
+//     state.pass_action.colors[0] = sg.ColorAttachmentAction{ .load_action = .CLEAR, .clear_value = sg.Color{ .r = 0, .g = 0.125, .b = 0.25, .a = 1 } };
+// }
 
-    var sdtx_desc = sdtx.Desc { .logger = .{ .func = slog.func } };
-    sdtx_desc.fonts[0] = sdtx.fontKc853();
-    sdtx.setup(sdtx_desc);
-
-    const pip_desc = sg.PipelineDesc {
-        .layout = {
-            .attrs[shd.ATTR_primtypes_position].format = sg.VertexFormat.FLOAT2;
-            .attrs[shd.ATTR_primtypes_color0].format = sg.VertexFormat.UBYTE4N;
-        },
-        .shader = sg.makeShader(shd.primtypesShaderDesc(sg.queryBackend())),
-        .depth = .{
-            .write_enabled = true,
-            .compare = sg.CompareFunc.LESS_EQUAL
-        },
-        .index_type = sg.IndexType.UINT16,
-        .primitive_type = sg.PrimitiveType.LINES,
-    };
-
-    state.prim.ibuf = sg.makeBuffer();
-    _ = sg.makePipeline(pip_desc);
-    
-
-    state.pass_action.colors[0] = sg.ColorAttachmentAction { .load_action = .CLEAR, .clear_value = sg.Color { .r = 0, .g = 0.125, .b = 0.25, .a = 1 } };
-}
-
-export fn frame() void {
-    const frame_time = stm.ms(stm.laptime(&state.time_stamp));
-
-    sdtx.canvas(@as(f32, @floatFromInt(sapp.width())) * 0.5, @as(f32, @floatFromInt(sapp.height())) * 0.5);
-    sdtx.origin(0.0, 2.0);
-
-    sdtx.font(0);
-    sdtx.color3b(100, 80, 120);
-    sdtx.puts("Hello\n");
-    sdtx.print("Frame Time: {d:.3}ms\n", .{frame_time});
-
-    sg.beginPass(sg.Pass { .action = state.pass_action, .swapchain = sglue.swapchain() });
-    sdtx.draw();
-
-                 for (0..kScreenWidth/40) |i| {
-                     const startVector = Vec2.new(40.0*i, 0);
-                     const endVector = Vec2.new(40.0*i, kScreenHeight);
-
-    //                 const startVector = rl.Vector2 { .x = @as(f32, @floatFromInt(40*i)), .y = 0 };
-    //                 const endVector = rl.Vector2 { .x = @as(f32, @floatFromInt(40*i)), .y = kScreenHeight };
-
-    //                 rl.drawLineV(startVector, endVector, rl.Color.light_gray);
-                 }
-
-    //             for (0..kScreenHeight/40) |i| {
-    //                 const startVector = rl.Vector2 { .y = @as(f32, @floatFromInt(40*i)), .x = 0 };
-    //                 const endVector = rl.Vector2 { .y = @as(f32, @floatFromInt(40*i)), .x = kScreenWidth };
-
-    //                 rl.drawLineV(startVector, endVector, rl.Color.light_gray);
-    //             }
-
-
-    sg.endPass();
-    sg.commit();
-}
-export fn input(event: ?*const sapp.Event) void {
-    _ = event; // autofix
-}
-export fn cleanup() void {
-    sdtx.shutdown();
-    sg.shutdown();
-}
+// export fn frame() void {
+//     const frame_time = stm.ms(stm.laptime(&state.time_stamp));
+//
+//     sdtx.canvas(@as(f32, @floatFromInt(sapp.width())) * 0.5, @as(f32, @floatFromInt(sapp.height())) * 0.5);
+//     sdtx.origin(0.0, 2.0);
+//
+//     sdtx.font(0);
+//     sdtx.color3b(100, 80, 120);
+//     sdtx.puts("Hello\n");
+//     sdtx.print("Frame Time: {d:.3}ms\n", .{frame_time});
+//
+//     sg.beginPass(sg.Pass{ .action = state.pass_action, .swapchain = sglue.swapchain() });
+//     sg.applyPipeline(state.prim.pip);
+//     sg.applyBindings(.{
+//         .vertex_buffers = [0]state.vbuf,
+//         .index_buffer = state.prim.ibuf
+//     });
+//     sg.applyUniforms(shd.UB_vs_params, sg.asRange(shd.VsParams));
+//     sg.draw(0, state.prim.ibuf, 1);
+//
+//     sdtx.draw();
+//
+//     for (0..kScreenWidth / 40) |i| {
+//         const startVector = Vec2.new(40.0 * i, 0);
+//         const endVector = Vec2.new(40.0 * i, kScreenHeight);
+//
+//         // const startVector = rl.Vector2 { .x = @as(f32, @floatFromInt(40*i)), .y = 0 };
+//         // const endVector = rl.Vector2 { .x = @as(f32, @floatFromInt(40*i)), .y = kScreenHeight };
+//
+//         // rl.drawLineV(startVector, endVector, rl.Color.light_gray);
+//     }
+//
+//     // for (0..kScreenHeight/40) |i| {
+//     //   const startVector = rl.Vector2 { .y = @as(f32, @floatFromInt(40*i)), .x = 0 };
+//     //   const endVector = rl.Vector2 { .y = @as(f32, @floatFromInt(40*i)), .x = kScreenWidth };
+//
+//     //   rl.drawLineV(startVector, endVector, rl.Color.light_gray);
+//     // }
+//
+//     sg.endPass();
+//     sg.commit();
+// }
+// export fn input(event: ?*const sapp.Event) void {
+//     _ = event; // autofix
+// }
+// export fn cleanup() void {
+//     sdtx.shutdown();
+//     sg.shutdown();
+// }
 
 pub fn main() !void {
-    sapp.run(.{
-        .init_cb = init,
-        .frame_cb = frame,
-        .event_cb = input,
-        .cleanup_cb = cleanup,
-        .width = kScreenWidth,
-        .height = kScreenHeight,
-        .sample_count = 4,
-        .icon = .{ .sokol_default = true },
-        .window_title = "test",
-        .logger = .{.func = slog.func }
-    });
+    g.wgpuInit();
+
+    //sapp.run(.{ .init_cb = init, .frame_cb = frame, .event_cb = input, .cleanup_cb = cleanup, .width = kScreenWidth, .height = kScreenHeight, .sample_count = 4, .icon = .{ .sokol_default = true }, .window_title = "test", .logger = .{ .func = slog.func } });
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     // std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 
@@ -155,7 +133,6 @@ pub fn main() !void {
     // rl.setTargetFPS(60);
 
     // var player: rl.Rectangle = rl.Rectangle { .height = 40, .width = 40, .x = 200, .y = 200 };
-
 
     // const camera: rl.Camera2D = rl.Camera2D{
     //     .target = rl.Vector2 { .x = player.x, .y = player.y },
