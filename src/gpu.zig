@@ -160,6 +160,7 @@ pub fn wgpuInit() anyerror!void {
     glfw.glfwSetWindowUserPointer(window, &state);
     _ = glfw.glfwSetKeyCallback(window, handle_glfw_key);
 
+    // OSX COCOA GLUE
     if (comptime builtin.target.os.tag == .macos) {
         const ns_window = glfw.glfwGetCocoaWindow(window);
         const objc_window = objc.Object.fromId(ns_window);
@@ -175,7 +176,7 @@ pub fn wgpuInit() anyerror!void {
         const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
 
         state.surface = wgpu.wgpuInstanceCreateSurface(state.instance, desc);
-    } else if (comptime builtin.target.os.tag == .linux) {
+    } else if (comptime builtin.target.os.tag == .linux) { // WAYLAND only atm
         const wl_display = glfw.glfwGetWaylandDisplay();
         const wl_surface = glfw.glfwGetWaylandWindow(window);
 
@@ -183,6 +184,9 @@ pub fn wgpuInit() anyerror!void {
         const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
 
         state.surface = wgpu.wgpuInstanceCreateSurface(state.instance, desc);
+    } else { // Windows?
+        std.log.err("Operating system not supported {s}", .{builtin.target.os.tag});
+        std.process.exit(1);
     }
 
     wgpu.wgpuInstanceRequestAdapter(state.instance, &.{ .compatibleSurface = state.surface }, handle_request_adapter, &state);
