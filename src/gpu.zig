@@ -6,18 +6,10 @@ const wgpu = @cImport({
 const builtin = @import("builtin");
 
 const glfw = @cImport({
-    if (builtin.target.os.tag == .macos) {
-        @cDefine("GLFW_EXPOSE_NATIVE_COCOA", "1");
-    } else {
-        @cDefine("GLFW_EXPOSE_NATIVE_WAYLAND", "1");
-    }
+    @cDefine(glfwDefine(), "1");
     @cInclude("GLFW/glfw3.h");
     @cInclude("GLFW/glfw3native.h");
 });
-
-const objc = @import("objc");
-
-const unicode = std.unicode;
 
 const State = struct {
     instance: wgpu.WGPUInstance,
@@ -28,6 +20,15 @@ const State = struct {
 };
 
 var state: State = State{ .instance = null, .surface = null, .adapter = null, .device = null, .config = null };
+
+fn glfwDefine() []const u8 {
+    return switch (comptime builtin.os.tag) {
+        .macos => "GLFW_EXPOSE_NATIVE_COCOA",
+        .linux => "GLFW_EXPOSE_NATIVE_WAYLAND",
+        .windows => "GLFW_EXPOSE_NATIVE_WIN32",
+        else => std.debug.panic("Unhandled operating system: {s}", .{builtin.os.tag}),
+    };
+}
 
 export fn handle_request_adapter(status: wgpu.WGPURequestAdapterStatus, adapter: wgpu.WGPUAdapter, message: [*c]const u8, userData: ?*anyopaque) void {
     if (status == wgpu.WGPURequestAdapterStatus_Success) {
@@ -141,6 +142,40 @@ fn print_global_report(report: wgpu.WGPUGlobalReport) void {
     std.log.info("}}", .{});
 }
 
+pub fn getMacOSSurface(window: *glfw.GLFWwindow) wgpu.WGPUSurface {
+    const objc = @import("objc");
+
+    const ns_window = glfw.glfwGetCocoaWindow(window);
+    const objc_window = objc.Object.fromId(ns_window);
+
+    const objc_view = objc_window.getProperty(objc.Object, "contentView");
+
+    _ = objc_view.msgSend(objc.Object, "setWantsLayer:", .{true});
+    const CAMetalLayer = objc.getClass("CAMetalLayer").?;
+    const layer = CAMetalLayer.msgSend(objc.Object, "layer", .{});
+    _ = objc_view.msgSend(objc.Object, "setLayer:", .{layer});
+
+    const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromMetalLayer{ .layer = layer.value, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromMetalLayer } }));
+    const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
+
+    return wgpu.wgpuInstanceCreateSurface(state.instance, desc);
+}
+
+pub fn getLinuxSurface(window: *glfw.GLFWwindow) wgpu.WGPUSurface {
+    const wl_display = glfw.glfwGetWaylandDisplay();
+    const wl_surface = glfw.glfwGetWaylandWindow(window);
+
+    const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromWaylandSurface{ .display = wl_display, .surface = wl_surface, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromWaylandSurface } }));
+    const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
+
+    return wgpu.wgpuInstanceCreateSurface(state.instance, desc);
+}
+
+pub fn getWindowsSurface(window: *glfw.GLFWwindow) wgpu.WGPUSurface {
+    _ = window;
+    std.debug.panic("Windows is currently unsupported", .{});
+}
+
 pub fn wgpuInit() anyerror!void {
     state.instance = wgpu.wgpuCreateInstance(null).?;
 
@@ -155,39 +190,20 @@ pub fn wgpuInit() anyerror!void {
     }
 
     glfw.glfwWindowHint(glfw.GLFW_CLIENT_API, glfw.GLFW_NO_API);
-    const window = glfw.glfwCreateWindow(640, 480, "aa", null, null);
+    const window = glfw.glfwCreateWindow(640, 480, "aa", null, null).?;
 
     glfw.glfwSetWindowUserPointer(window, &state);
     _ = glfw.glfwSetKeyCallback(window, handle_glfw_key);
 
-    // OSX COCOA GLUE
-    if (comptime builtin.target.os.tag == .macos) {
-        const ns_window = glfw.glfwGetCocoaWindow(window);
-        const objc_window = objc.Object.fromId(ns_window);
-
-        const objc_view = objc_window.getProperty(objc.Object, "contentView");
-
-        _ = objc_view.msgSend(objc.Object, "setWantsLayer:", .{true});
-        const CAMetalLayer = objc.getClass("CAMetalLayer").?;
-        const layer = CAMetalLayer.msgSend(objc.Object, "layer", .{});
-        _ = objc_view.msgSend(objc.Object, "setLayer:", .{layer});
-
-        const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromMetalLayer{ .layer = layer.value, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromMetalLayer } }));
-        const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
-
-        state.surface = wgpu.wgpuInstanceCreateSurface(state.instance, desc);
-    } else if (comptime builtin.target.os.tag == .linux) { // WAYLAND only atm
-        const wl_display = glfw.glfwGetWaylandDisplay();
-        const wl_surface = glfw.glfwGetWaylandWindow(window);
-
-        const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromWaylandSurface{ .display = wl_display, .surface = wl_surface, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromWaylandSurface } }));
-        const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
-
-        state.surface = wgpu.wgpuInstanceCreateSurface(state.instance, desc);
-    } else { // Windows?
-        std.log.err("Operating system not supported {s}", .{builtin.target.os.tag});
-        std.process.exit(1);
-    }
+    state.surface = switch (comptime builtin.target.os.tag) {
+        .macos => getMacOSSurface(window),
+        .linux => getLinuxSurface(window),
+        .windows => getWindowsSurface(window),
+        else => {
+            std.log.err("Operating system not supported {s}", .{builtin.target.os.tag});
+            std.process.exit(1);
+        },
+    };
 
     wgpu.wgpuInstanceRequestAdapter(state.instance, &.{ .compatibleSurface = state.surface }, handle_request_adapter, &state);
     print_adapter_info(state.adapter);
