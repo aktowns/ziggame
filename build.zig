@@ -75,13 +75,18 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
     gpu_lib.addLibraryPath(b.path("ext/wgpu-macos-aarch64-debug/lib/"));
     gpu_lib.linkSystemLibrary("wgpu_native", .{ .preferred_link_mode = .static });
     gpu_lib.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
-    gpu_lib.linkFramework("CoreFoundation", .{});
-    gpu_lib.linkFramework("Metal", .{});
-    gpu_lib.linkFramework("QuartzCore", .{});
 
-    gpu_lib.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+    if (builtin.target.os.tag == .macos) {
+        gpu_lib.linkFramework("CoreFoundation", .{});
+        gpu_lib.linkFramework("Metal", .{});
+        gpu_lib.linkFramework("QuartzCore", .{});
 
-    exe.root_module.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+        gpu_lib.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+
+        exe.root_module.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+    } else if (builtin.target.os.tag == .linux) {
+        gpu_lib.linkSystemLibrary("unwind", .{});
+    }
 
     // b.installArtifact(gpu_lib);
 

@@ -3,8 +3,14 @@ const wgpu = @cImport({
     @cInclude("wgpu/wgpu.h");
 });
 
+const builtin = @import("builtin");
+
 const glfw = @cImport({
-    @cDefine("GLFW_EXPOSE_NATIVE_COCOA", "1");
+    if (builtin.target.os.tag == .macos) {
+        @cDefine("GLFW_EXPOSE_NATIVE_COCOA", "1");
+    } else {
+        @cDefine("GLFW_EXPOSE_NATIVE_WAYLAND", "1");
+    }
     @cInclude("GLFW/glfw3.h");
     @cInclude("GLFW/glfw3native.h");
 });
@@ -67,15 +73,15 @@ fn print_adapter_info(adapter: wgpu.WGPUAdapter) void {
     wgpu.wgpuAdapterInfoFreeMembers(info);
 }
 
-inline fn print_registry_report(report: wgpu.WGPURegistryReport, pfx: [:0] const u8) void {
-    std.log.info("  {s}.numAllocated={d}", .{pfx, report.numAllocated});
-    std.log.info("  {s}.numKeptFromUser={d}", .{pfx, report.numKeptFromUser});
-    std.log.info("  {s}.numReleasedFromUser={d}", .{pfx, report.numReleasedFromUser});
-    std.log.info("  {s}.numError={d}", .{pfx, report.numError});
-    std.log.info("  {s}.elementSize={d}", .{pfx, report.elementSize});
+inline fn print_registry_report(report: wgpu.WGPURegistryReport, pfx: [:0]const u8) void {
+    std.log.info("  {s}.numAllocated={d}", .{ pfx, report.numAllocated });
+    std.log.info("  {s}.numKeptFromUser={d}", .{ pfx, report.numKeptFromUser });
+    std.log.info("  {s}.numReleasedFromUser={d}", .{ pfx, report.numReleasedFromUser });
+    std.log.info("  {s}.numError={d}", .{ pfx, report.numError });
+    std.log.info("  {s}.elementSize={d}", .{ pfx, report.elementSize });
 }
 
-inline fn print_hub_report(report: wgpu.WGPUHubReport, pfx: [:0] const u8) void {
+inline fn print_hub_report(report: wgpu.WGPUHubReport, pfx: [:0]const u8) void {
     print_registry_report(report.adapters, pfx ++ ".adapter");
     print_registry_report(report.devices, pfx ++ ".devices");
     print_registry_report(report.queues, pfx ++ ".queues");
@@ -103,7 +109,7 @@ fn load_shader_module(device: wgpu.WGPUDevice, name: [:0]const u8) anyerror!wgpu
     const path = try std.fs.cwd().realpathAlloc(allocator, ".");
     defer allocator.free(path);
 
-    const shader_path = try std.fs.path.join(allocator, &[_][]const u8{path, "shaders", name});
+    const shader_path = try std.fs.path.join(allocator, &[_][]const u8{ path, "shaders", name });
     defer allocator.free(shader_path);
 
     std.log.info("[Shaders] opening path {s}", .{shader_path});
@@ -118,14 +124,7 @@ fn load_shader_module(device: wgpu.WGPUDevice, name: [:0]const u8) anyerror!wgpu
 
     std.log.info("[Shaders] loaded shader {s}", .{buffer});
 
-
-    return wgpu.wgpuDeviceCreateShaderModule(device, &wgpu.WGPUShaderModuleDescriptor {
-       .label = name,
-       .nextInChain = @as(*wgpu.WGPUChainedStruct, @constCast(@ptrCast(&wgpu.WGPUShaderModuleWGSLDescriptor {
-           .chain = wgpu.WGPUChainedStruct { .sType = wgpu.WGPUSType_ShaderModuleWGSLDescriptor },
-           .code = buffer.ptr
-       })))
-    });
+    return wgpu.wgpuDeviceCreateShaderModule(device, &wgpu.WGPUShaderModuleDescriptor{ .label = name, .nextInChain = @as(*wgpu.WGPUChainedStruct, @constCast(@ptrCast(&wgpu.WGPUShaderModuleWGSLDescriptor{ .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_ShaderModuleWGSLDescriptor }, .code = buffer.ptr }))) });
 }
 
 fn print_global_report(report: wgpu.WGPUGlobalReport) void {
@@ -161,20 +160,30 @@ pub fn wgpuInit() anyerror!void {
     glfw.glfwSetWindowUserPointer(window, &state);
     _ = glfw.glfwSetKeyCallback(window, handle_glfw_key);
 
-    const ns_window = glfw.glfwGetCocoaWindow(window);
-    const objc_window = objc.Object.fromId(ns_window);
+    if (comptime builtin.target.os.tag == .macos) {
+        const ns_window = glfw.glfwGetCocoaWindow(window);
+        const objc_window = objc.Object.fromId(ns_window);
 
-    const objc_view = objc_window.getProperty(objc.Object, "contentView");
+        const objc_view = objc_window.getProperty(objc.Object, "contentView");
 
-    _ = objc_view.msgSend(objc.Object, "setWantsLayer:", .{true});
-    const CAMetalLayer = objc.getClass("CAMetalLayer").?;
-    const layer = CAMetalLayer.msgSend(objc.Object, "layer", .{});
-    _ = objc_view.msgSend(objc.Object, "setLayer:", .{layer});
+        _ = objc_view.msgSend(objc.Object, "setWantsLayer:", .{true});
+        const CAMetalLayer = objc.getClass("CAMetalLayer").?;
+        const layer = CAMetalLayer.msgSend(objc.Object, "layer", .{});
+        _ = objc_view.msgSend(objc.Object, "setLayer:", .{layer});
 
-    const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromMetalLayer{ .layer = layer.value, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromMetalLayer } }));
-    const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
+        const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromMetalLayer{ .layer = layer.value, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromMetalLayer } }));
+        const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
 
-    state.surface = wgpu.wgpuInstanceCreateSurface(state.instance, desc);
+        state.surface = wgpu.wgpuInstanceCreateSurface(state.instance, desc);
+    } else if (comptime builtin.target.os.tag == .linux) {
+        const wl_display = glfw.glfwGetWaylandDisplay();
+        const wl_surface = glfw.glfwGetWaylandWindow(window);
+
+        const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromWaylandSurface{ .display = wl_display, .surface = wl_surface, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromWaylandSurface } }));
+        const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
+
+        state.surface = wgpu.wgpuInstanceCreateSurface(state.instance, desc);
+    }
 
     wgpu.wgpuInstanceRequestAdapter(state.instance, &.{ .compatibleSurface = state.surface }, handle_request_adapter, &state);
     print_adapter_info(state.adapter);
@@ -186,7 +195,7 @@ pub fn wgpuInit() anyerror!void {
     const shader_module = try load_shader_module(state.device, "shader.wgsl");
     defer wgpu.wgpuShaderModuleRelease(shader_module);
 
-    const pipeline_layout = wgpu.wgpuDeviceCreatePipelineLayout(state.device, &wgpu.WGPUPipelineLayoutDescriptor {
+    const pipeline_layout = wgpu.wgpuDeviceCreatePipelineLayout(state.device, &wgpu.WGPUPipelineLayoutDescriptor{
         .label = "pipeline_layout",
     });
     defer wgpu.wgpuPipelineLayoutRelease(pipeline_layout);
@@ -195,41 +204,15 @@ pub fn wgpuInit() anyerror!void {
     wgpu.wgpuSurfaceGetCapabilities(state.surface, state.adapter, &surface_capabilities);
     defer wgpu.wgpuSurfaceCapabilitiesFreeMembers(surface_capabilities);
 
-    const render_pipeline = wgpu.wgpuDeviceCreateRenderPipeline(state.device, &wgpu.WGPURenderPipelineDescriptor {
-        .label = "render_pipeline",
-        .layout = pipeline_layout,
-        .vertex = wgpu.WGPUVertexState {
-            .module = shader_module,
-            .entryPoint = "vs_main",
-        },
-        .fragment = &wgpu.WGPUFragmentState {
-            .module = shader_module,
-            .entryPoint = "fs_main",
-            .targetCount = 1,
-            .targets = &[_]wgpu.WGPUColorTargetState {
-                wgpu.WGPUColorTargetState {
-                    .format = surface_capabilities.formats[0],
-                    .writeMask = wgpu.WGPUColorWriteMask_All
-                }
-            }
-        },
-        .primitive = wgpu.WGPUPrimitiveState {
-            .topology = wgpu.WGPUPrimitiveTopology_TriangleList,
-        },
-        .multisample = wgpu.WGPUMultisampleState {
-            .count = 1,
-            .mask = 0xFFFFFFFF
-        }
-    });
+    const render_pipeline = wgpu.wgpuDeviceCreateRenderPipeline(state.device, &wgpu.WGPURenderPipelineDescriptor{ .label = "render_pipeline", .layout = pipeline_layout, .vertex = wgpu.WGPUVertexState{
+        .module = shader_module,
+        .entryPoint = "vs_main",
+    }, .fragment = &wgpu.WGPUFragmentState{ .module = shader_module, .entryPoint = "fs_main", .targetCount = 1, .targets = &[_]wgpu.WGPUColorTargetState{wgpu.WGPUColorTargetState{ .format = surface_capabilities.formats[0], .writeMask = wgpu.WGPUColorWriteMask_All }} }, .primitive = wgpu.WGPUPrimitiveState{
+        .topology = wgpu.WGPUPrimitiveTopology_TriangleList,
+    }, .multisample = wgpu.WGPUMultisampleState{ .count = 1, .mask = 0xFFFFFFFF } });
     defer wgpu.wgpuRenderPipelineRelease(render_pipeline);
 
-    state.config = @constCast(&wgpu.WGPUSurfaceConfiguration {
-        .device = state.device,
-        .usage = wgpu.WGPUTextureUsage_RenderAttachment,
-        .format = surface_capabilities.formats[0],
-        .presentMode = wgpu.WGPUPresentMode_Fifo,
-        .alphaMode = surface_capabilities.alphaModes[0]
-    });
+    state.config = @constCast(&wgpu.WGPUSurfaceConfiguration{ .device = state.device, .usage = wgpu.WGPUTextureUsage_RenderAttachment, .format = surface_capabilities.formats[0], .presentMode = wgpu.WGPUPresentMode_Fifo, .alphaMode = surface_capabilities.alphaModes[0] });
 
     {
         var width: c_int = 0;
@@ -268,41 +251,20 @@ pub fn wgpuInit() anyerror!void {
             else => {
                 std.log.err("UNHANDLED get_current_texture status={d}", .{surface_texture.status});
                 std.process.exit(1);
-            }
+            },
         }
 
         const frame = wgpu.wgpuTextureCreateView(surface_texture.texture, null);
-        const command_encoder = wgpu.wgpuDeviceCreateCommandEncoder(state.device, &wgpu.WGPUCommandEncoderDescriptor {
-            .label = "command_encoder"
-        });
+        const command_encoder = wgpu.wgpuDeviceCreateCommandEncoder(state.device, &wgpu.WGPUCommandEncoderDescriptor{ .label = "command_encoder" });
 
-        const render_pass_encoder = wgpu.wgpuCommandEncoderBeginRenderPass(command_encoder, &wgpu.WGPURenderPassDescriptor {
-            .label = "render_pass_encoder",
-            .colorAttachmentCount = 1,
-            .colorAttachments= &[_]wgpu.WGPURenderPassColorAttachment {
-               wgpu.WGPURenderPassColorAttachment {
-                   .view = frame,
-                   .loadOp = wgpu.WGPULoadOp_Clear,
-                   .storeOp = wgpu.WGPUStoreOp_Store,
-                   .depthSlice = wgpu.WGPU_DEPTH_SLICE_UNDEFINED,
-                   .clearValue = wgpu.WGPUColor {
-                       .r = 0.0,
-                       .g = 1.0,
-                       .b = 0.0,
-                       .a = 1.0
-                   }
-               }
-            }
-        });
+        const render_pass_encoder = wgpu.wgpuCommandEncoderBeginRenderPass(command_encoder, &wgpu.WGPURenderPassDescriptor{ .label = "render_pass_encoder", .colorAttachmentCount = 1, .colorAttachments = &[_]wgpu.WGPURenderPassColorAttachment{wgpu.WGPURenderPassColorAttachment{ .view = frame, .loadOp = wgpu.WGPULoadOp_Clear, .storeOp = wgpu.WGPUStoreOp_Store, .depthSlice = wgpu.WGPU_DEPTH_SLICE_UNDEFINED, .clearValue = wgpu.WGPUColor{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 } }} });
 
         wgpu.wgpuRenderPassEncoderSetPipeline(render_pass_encoder, render_pipeline);
         wgpu.wgpuRenderPassEncoderDraw(render_pass_encoder, 3, 1, 0, 0);
         wgpu.wgpuRenderPassEncoderEnd(render_pass_encoder);
         wgpu.wgpuRenderPassEncoderRelease(render_pass_encoder);
 
-        const command_buffer = wgpu.wgpuCommandEncoderFinish(command_encoder, &wgpu.WGPUCommandBufferDescriptor {
-            .label = "command_buffer"
-        });
+        const command_buffer = wgpu.wgpuCommandEncoderFinish(command_encoder, &wgpu.WGPUCommandBufferDescriptor{ .label = "command_buffer" });
 
         wgpu.wgpuQueueSubmit(queue, 1, &[_]wgpu.WGPUCommandBuffer{command_buffer});
         wgpu.wgpuSurfacePresent(state.surface);
