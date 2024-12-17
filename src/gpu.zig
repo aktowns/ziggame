@@ -172,8 +172,13 @@ pub fn getLinuxSurface(window: *glfw.GLFWwindow) wgpu.WGPUSurface {
 }
 
 pub fn getWindowsSurface(window: *glfw.GLFWwindow) wgpu.WGPUSurface {
-    _ = window;
-    std.debug.panic("Windows is currently unsupported", .{});
+    const hwnd = glfw.glfwGetWin32Window(window);
+    const hinstance = glfw.GetModuleHandle(null);
+
+    const chain: *wgpu.WGPUChainedStruct = @constCast(@ptrCast(&wgpu.WGPUSurfaceDescriptorFromWindowsHWND{ .hinstance = hinstance, .hwnd = hwnd, .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_SurfaceDescriptorFromWindowsHWND } }));
+    const desc = &wgpu.WGPUSurfaceDescriptor{ .nextInChain = chain };
+
+    return wgpu.wgpuInstanceCreateSurface(state.instance, desc);
 }
 
 pub fn wgpuInit() anyerror!void {
