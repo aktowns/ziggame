@@ -51,7 +51,7 @@ pub fn build(b: *Build) !void {
 }
 
 fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, other_deps: []const struct { []const u8, *Build.Dependency }) anyerror!void {
-    const gpu_lib = b.addModule("gpu", .{ .root_source_file = b.path("src/engine/engine.zig"), .target = target, .optimize = optimize });
+    const gpu_lib = b.addModule("gpu", .{ .root_source_file = b.path("src/gpu.zig"), .target = target, .optimize = optimize });
 
     if (!target.result.isWasm()) {
         const exe = b.addExecutable(.{

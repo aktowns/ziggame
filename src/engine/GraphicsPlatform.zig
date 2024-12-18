@@ -17,8 +17,10 @@ pub const Error = error{ FailedToCreateInstance, FailedToInitializeGLFW, FailedT
 pub const GraphicsPlatformOptions = struct { windowTitle: []const u8, windowWidth: u32, windowHeight: u32, getSurfaceDescriptor: fn (window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor };
 
 pub fn init(options: GraphicsPlatformOptions) Error!@This() {
+    std.log.info("Creating webgpu instance", .{});
     const instance = wg.wgpuCreateInstance(null) orelse return Error.FailedToCreateInstance;
 
+    std.log.info("Initializing GLFW", .{});
     if (glfw.glfwInit() != 1) {
         std.log.err("failed to initialize glfw: {?s}", .{"?"});
         return Error.FailedToInitializeGLFW;
@@ -26,18 +28,16 @@ pub fn init(options: GraphicsPlatformOptions) Error!@This() {
 
     glfw.glfwWindowHint(glfw.GLFW_CLIENT_API, glfw.GLFW_NO_API);
 
-    if (comptime builtin.target.os.tag == .emscripten) {
-        std.log.info("webassembly hacks", .{});
-        glfw.emscripten_glfw_set_next_window_canvas_selector("#canvas");
-    }
-
     const window = glfw.glfwCreateWindow(options.windowWidth, options.windowHeight, @as([*c]const u8, @ptrCast(options.windowTitle)), null, null).?;
 
     const surface_descriptor = options.getSurfaceDescriptor(window);
 
-    std.log.info("Got surface descriptor: {?}", .{surface_descriptor});
-
+    std.log.info("Creating surface (from descriptor {?})", .{surface_descriptor});
     const surface = wg.wgpuInstanceCreateSurface(instance, &surface_descriptor) orelse return Error.FailedToGetSurface;
 
     return .{ .instance = instance, .surface = surface, .adapter = null, .device = null, .config = null };
+}
+
+pub fn deinit(self: *@This()) void {
+    _ = self;
 }

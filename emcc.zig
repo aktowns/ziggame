@@ -19,7 +19,7 @@ pub fn emscriptenRunStep(b: *std.Build) !*std.Build.Step.Run {
     }
 
     const run_cmd = b.addSystemCommand(&[_][]const u8{ emrun_run_arg, emccOutputDir ++ emccOutputFile });
-    run_cmd.addArg("--browser=firefox");
+    run_cmd.addArg("--browser=chrome");
     return run_cmd;
 }
 

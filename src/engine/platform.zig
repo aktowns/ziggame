@@ -1,10 +1,13 @@
+const Platform = @This();
+
 const std = @import("std");
 const builtin = @import("builtin");
 const cincludes = @import("cincludes.zig");
 const glfw = cincludes.glfw;
 const wg = cincludes.wg;
 
-pub const Platform = struct { name: []const u8, surface_descriptor: fn (window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor };
+name: []const u8,
+surface_descriptor: fn (window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor,
 
 pub const Error = error{PlatformNotFound};
 
@@ -22,12 +25,22 @@ pub fn getCurrentPlatform() Error!Platform {
 }
 
 fn getMacOSSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor {
+    std.log.info("Using MacOS Surface", .{});
     const objc = @import("objc");
 
     const ns_window = glfw.glfwGetCocoaWindow(window);
     const objc_window = objc.Object.fromId(ns_window);
 
+    const objc_window_descr = objc_window
+        .msgSend(objc.Object, "description", .{})
+        .msgSend([*c]const u8, "UTF8String", .{});
+    std.log.debug("objc_window: {s}", .{objc_window_descr});
+
     const objc_view = objc_window.getProperty(objc.Object, "contentView");
+    const objc_view_descr = objc_view
+        .msgSend(objc.Object, "description", .{})
+        .msgSend([*c]const u8, "UTF8String", .{});
+    std.log.debug("objc_view: {s}", .{objc_view_descr});
 
     _ = objc_view.msgSend(objc.Object, "setWantsLayer:", .{true});
     const CAMetalLayer = objc.getClass("CAMetalLayer").?;
@@ -36,7 +49,7 @@ fn getMacOSSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor {
 
     const chain: *wg.WGPUChainedStruct = @constCast(@ptrCast(&wg.WGPUSurfaceDescriptorFromMetalLayer{ .layer = layer.value, .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceDescriptorFromMetalLayer } }));
 
-    return wg.WGPUSurfaceDescriptor{ .nextInChain = chain, .label = "MacOSSurface" };
+    return wg.WGPUSurfaceDescriptor{ .nextInChain = chain };
 }
 
 fn getLinuxSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor {
