@@ -1,6 +1,10 @@
 const std = @import("std");
 const wgpu = @cImport({
-    @cInclude("wgpu/wgpu.h");
+    if (!builtin.target.isWasm()) {
+        @cInclude("wgpu/wgpu.h");
+    } else {
+        @cInclude("webgpu/webgpu.h");
+    }
 });
 
 const builtin = @import("builtin");
@@ -8,7 +12,9 @@ const builtin = @import("builtin");
 const glfw = @cImport({
     @cDefine(glfwDefine(), "1");
     @cInclude("GLFW/glfw3.h");
-    @cInclude("GLFW/glfw3native.h");
+    if (!builtin.target.isWasm()) {
+        @cInclude("GLFW/glfw3native.h");
+    }
 });
 
 const State = struct {
@@ -26,7 +32,8 @@ fn glfwDefine() []const u8 {
         .macos => "GLFW_EXPOSE_NATIVE_COCOA",
         .linux => "GLFW_EXPOSE_NATIVE_WAYLAND",
         .windows => "GLFW_EXPOSE_NATIVE_WIN32",
-        else => std.debug.panic("Unhandled operating system: {s}", .{builtin.os.tag}),
+        .emscripten => "GLFW_NATIVE_INCLUDE_NONE",
+        else => std.debug.panic("Unhandled operating system: {?}", .{builtin.os.tag}),
     };
 }
 
@@ -123,8 +130,6 @@ fn load_shader_module(device: wgpu.WGPUDevice, name: [:0]const u8) anyerror!wgpu
     const buffer = try file.readToEndAllocOptions(allocator, stat.size, null, @alignOf(u8), 0);
     defer allocator.free(buffer);
 
-    std.log.info("[Shaders] loaded shader {s}", .{buffer});
-
     return wgpu.wgpuDeviceCreateShaderModule(device, &wgpu.WGPUShaderModuleDescriptor{ .label = name, .nextInChain = @as(*wgpu.WGPUChainedStruct, @constCast(@ptrCast(&wgpu.WGPUShaderModuleWGSLDescriptor{ .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_ShaderModuleWGSLDescriptor }, .code = buffer.ptr }))) });
 }
 
@@ -205,7 +210,7 @@ pub fn wgpuInit() anyerror!void {
         .linux => getLinuxSurface(window),
         .windows => getWindowsSurface(window),
         else => {
-            std.log.err("Operating system not supported {s}", .{builtin.target.os.tag});
+            std.log.err("Operating system not supported {?}", .{builtin.target.os.tag});
             std.process.exit(1);
         },
     };
@@ -229,6 +234,7 @@ pub fn wgpuInit() anyerror!void {
     wgpu.wgpuSurfaceGetCapabilities(state.surface, state.adapter, &surface_capabilities);
     defer wgpu.wgpuSurfaceCapabilitiesFreeMembers(surface_capabilities);
 
+    // TODO: Abstract out wgsl shader loading
     const render_pipeline = wgpu.wgpuDeviceCreateRenderPipeline(state.device, &wgpu.WGPURenderPipelineDescriptor{ .label = "render_pipeline", .layout = pipeline_layout, .vertex = wgpu.WGPUVertexState{
         .module = shader_module,
         .entryPoint = "vs_main",
@@ -239,6 +245,7 @@ pub fn wgpuInit() anyerror!void {
 
     state.config = @constCast(&wgpu.WGPUSurfaceConfiguration{ .device = state.device, .usage = wgpu.WGPUTextureUsage_RenderAttachment, .format = surface_capabilities.formats[0], .presentMode = wgpu.WGPUPresentMode_Fifo, .alphaMode = surface_capabilities.alphaModes[0] });
 
+    // TODO: General window size change handling, fire events?
     {
         var width: c_int = 0;
         var height: c_int = 0;
@@ -249,6 +256,7 @@ pub fn wgpuInit() anyerror!void {
 
     wgpu.wgpuSurfaceConfigure(state.surface, state.config);
 
+    // TODO: How does this work in webassembly?
     while (glfw.glfwWindowShouldClose(window) == glfw.GLFW_FALSE) {
         glfw.glfwPollEvents();
 
@@ -274,7 +282,7 @@ pub fn wgpuInit() anyerror!void {
                 std.process.exit(1);
             },
             else => {
-                std.log.err("UNHANDLED get_current_texture status={d}", .{surface_texture.status});
+                std.log.err("FATAL UNHANDLED get_current_texture status={d}", .{surface_texture.status});
                 std.process.exit(1);
             },
         }
