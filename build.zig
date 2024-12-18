@@ -142,6 +142,9 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
 
         const run_step = try emcc.emscriptenRunStep(b);
         run_step.step.dependOn(&link_step.step);
+
+        const run_option = b.step("run", "idk man");
+        run_option.dependOn(&run_step.step);
     }
 }
 

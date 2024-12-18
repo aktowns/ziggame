@@ -122,6 +122,7 @@ const kScreenHeight = 600;
 
 pub fn main() anyerror!void {
     const platform = try g.platform.getCurrentPlatform();
+    std.log.info("Using platform: {s}", .{platform.name});
     _ = try g.GraphicsPlatform.init(.{ .windowHeight = 480, .windowWidth = 640, .windowTitle = "testing", .getSurfaceDescriptor = platform.surface_descriptor });
 
     //sapp.run(.{ .init_cb = init, .frame_cb = frame, .event_cb = input, .cleanup_cb = cleanup, .width = kScreenWidth, .height = kScreenHeight, .sample_count = 4, .icon = .{ .sokol_default = true }, .window_title = "test", .logger = .{ .func = slog.func } });

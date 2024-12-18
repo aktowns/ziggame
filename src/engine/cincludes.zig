@@ -9,6 +9,8 @@ pub const glfw = @cImport({
     if (!builtin.target.isWasm()) {
         @cDefine(glfwDefine(), "1");
         @cInclude("GLFW/glfw3native.h");
+    } else {
+        @cInclude("contrib.glfw3/GLFW/emscripten_glfw3.h");
     }
 });
 

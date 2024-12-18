@@ -19,6 +19,7 @@ pub fn emscriptenRunStep(b: *std.Build) !*std.Build.Step.Run {
     }
 
     const run_cmd = b.addSystemCommand(&[_][]const u8{ emrun_run_arg, emccOutputDir ++ emccOutputFile });
+    run_cmd.addArg("--browser=firefox");
     return run_cmd;
 }
 
@@ -102,12 +103,19 @@ pub fn linkWithEmscripten(
         "-o",
         emccOutputDir ++ emccOutputFile,
         "-sUSE_OFFSET_CONVERTER",
-        "-sFULL-ES3=1",
-        "-sUSE_GLFW=3",
-        "-sASYNCIFY",
-        "-O3",
+        //        "-sFULL-ES3=1",
+        "--use-port=contrib.glfw3",
+        // "-sUSE_GLFW=3",
+        "-sUSE_WEBGPU=1",
+        //        "-sASYNCIFY",
+        //"-O3",
+        "-Og",
+        "-sSAFE_HEAP=1",
+        "-sSTACK_OVERFLOW_CHECK=1",
         "--emrun",
     });
+    emcc_command.addPrefixedFileArg("--shell-file=", b.path("shell.html"));
+
     return emcc_command;
 }
 
