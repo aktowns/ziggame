@@ -51,7 +51,7 @@ pub fn build(b: *Build) !void {
 }
 
 fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, other_deps: []const struct { []const u8, *Build.Dependency }) anyerror!void {
-    const gpu_lib = b.addModule("gpu", .{ .root_source_file = b.path("src/gpu.zig"), .target = target, .optimize = optimize });
+    const gpu_lib = b.addModule("gpu", .{ .root_source_file = b.path("src/engine/engine.zig"), .target = target, .optimize = optimize });
 
     if (!target.result.isWasm()) {
         const exe = b.addExecutable(.{
@@ -67,14 +67,15 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
 
         exe.linkLibC();
         std.log.info("Non-webassembly target: {?}", .{builtin.target.os});
-        exe.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/"));
-        exe.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/webgpu/"));
+        exe.addIncludePath(b.path("ext/dawn/include/"));
+        exe.addIncludePath(b.path("ext/dawn/include/webgpu/"));
 
         // const gpu_lib = b.addStaticLibrary(.{ .name = "gpu", .root_source_file = b.path("src/gpu.zig"), .target = target, .optimize = optimize });
-        gpu_lib.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/"));
-        gpu_lib.addIncludePath(b.path("ext/wgpu-macos-aarch64-debug/include/webgpu/"));
-        gpu_lib.addLibraryPath(b.path("ext/wgpu-macos-aarch64-debug/lib/"));
-        gpu_lib.linkSystemLibrary("wgpu_native", .{ .preferred_link_mode = .static });
+        gpu_lib.addIncludePath(b.path("ext/dawn/include/"));
+        gpu_lib.addIncludePath(b.path("ext/dawn/include/webgpu/"));
+        gpu_lib.addLibraryPath(b.path("ext/dawn/lib/"));
+        // gpu_lib.linkSystemLibrary("wgpu_native", .{ .preferred_link_mode = .static });
+        gpu_lib.linkSystemLibrary("webgpu_dawn", .{});
         gpu_lib.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
 
         if (target.result.os.tag == .macos) {

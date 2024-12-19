@@ -7,24 +7,54 @@ const glfw = cincludes.glfw;
 const wg = cincludes.wg;
 
 name: []const u8,
-surface_descriptor: fn (window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor,
+os: std.Target.Os,
+//surface_descriptor: fn (window: *glfw.GLFWwindow) Error!wg.WGPUSurfaceDescriptor,
+allocator: std.mem.Allocator,
 
-pub const Error = error{PlatformNotFound};
+pub const Error = error{ PlatformNotFound, FailedToConstructSurface };
 
-pub fn getCurrentPlatform() Error!Platform {
+fn platformName() Error![]const u8 {
     return switch (comptime builtin.target.os.tag) {
-        .windows => .{ .name = "Windows", .surface_descriptor = getWindowsSurface },
-        .linux => .{ .name = "Linux", .surface_descriptor = getLinuxSurface },
-        .macos => .{ .name = "MacOS", .surface_descriptor = getMacOSSurface },
-        .emscripten => .{ .name = "Emscripten", .surface_descriptor = getEmscriptenSurface },
+        .windows => "Windows",
+        .linux => "Linux",
+        .macos => "MacOS",
+        .emscripten => "Web",
         else => {
             std.log.err("Platform not supported: {?}", builtin.target.os.tag);
             Error.PlatformNotFound;
         },
     };
 }
+pub fn getCurrentPlatform() Error!Platform {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
 
-fn getMacOSSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor {
+    return .{ .name = try platformName(), .allocator = allocator, .os = builtin.target.os };
+
+    // return switch (comptime builtin.target.os.tag) {
+    //     .windows => .{ .name = "Windows", .allocator = allocator, .os = builtin.target.os },
+    //     .linux => .{ .name = "Linux", .allocator = allocator, bi},
+    //     .macos => .{ .name = "MacOS", .allocator = allocator, .surface_descriptor = getMacOSSurface },
+    //     .emscripten => .{ .name = "Emscripten", .allocator = allocator, .surface_descriptor = getEmscriptenSurface },
+    //     else => {
+    //         std.log.err("Platform not supported: {?}", builtin.target.os.tag);
+    //         Error.PlatformNotFound;
+    //     },
+    // };
+}
+
+inline fn stringView(comptime str: [:0]const u8) wg.WGPUStringView {
+    return wg.WGPUStringView{ .data = str, .length = str.len };
+}
+
+pub fn getSurface(self: *const @This(), window: *glfw.GLFWwindow) Error!*wg.WGPUChainedStruct {
+    return switch (comptime builtin.target.os.tag) {
+        .macos => self.getMacOSSurface(window),
+        else => Error.PlatformNotFound,
+    };
+}
+
+fn getMacOSSurface(self: *const @This(), window: *glfw.GLFWwindow) Error!*wg.WGPUChainedStruct {
     std.log.info("Using MacOS Surface", .{});
     const objc = @import("objc");
 
@@ -47,9 +77,21 @@ fn getMacOSSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor {
     const layer = CAMetalLayer.msgSend(objc.Object, "layer", .{});
     _ = objc_view.msgSend(objc.Object, "setLayer:", .{layer});
 
-    const chain: *wg.WGPUChainedStruct = @constCast(@ptrCast(&wg.WGPUSurfaceDescriptorFromMetalLayer{ .layer = layer.value, .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceDescriptorFromMetalLayer } }));
+    var strct = self.allocator.create(wg.WGPUSurfaceDescriptorFromMetalLayer) catch return Error.FailedToConstructSurface;
+    strct.chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceMetalLayer, .next = null };
+    strct.layer = layer.value;
 
-    return wg.WGPUSurfaceDescriptor{ .nextInChain = chain };
+    // var strct = allocator.alloc(wg.WGPUSurfaceDescriptorFromMetalLayer, 1) catch unreachable;
+    // strct[0].chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceMetalLayer, .next = null };
+    // strct[0].layer = layer.value;
+
+    // const metalLayerDesc = wg.WGPUSurfaceDescriptorFromMetalLayer{
+    //     .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceMetalLayer, .next = null },
+    //     .layer = layer.value,
+    // };
+
+    return @ptrCast(strct);
+    // return wg.WGPUSurfaceDescriptor{ .nextInChain = @ptrCast(strct), .label = stringView("MacOSSurface") };
 }
 
 fn getLinuxSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptor {
