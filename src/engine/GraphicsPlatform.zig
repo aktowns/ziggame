@@ -36,7 +36,11 @@ pub fn init(options: GraphicsPlatformOptions) Error!@This() {
         std.log.err("Failed to get surface: {?}", .{err});
         return Error.FailedToGetSurface;
     };
-    const surface_descriptor = wg.WGPUSurfaceDescriptor{ .nextInChain = surface_chain };
+    defer surface_chain.deinit(options.osPlatform.allocator);
+
+    const surface_descriptor = switch (surface_chain) {
+        .MacOS => |chain| wg.WGPUSurfaceDescriptor{ .nextInChain = @ptrCast(chain) },
+    };
 
     std.log.info("Creating surface ({s} from descriptor {?})", .{ @typeName(@TypeOf(surface_descriptor)), surface_descriptor });
     const surface = wg.wgpuInstanceCreateSurface(instance, &surface_descriptor) orelse return Error.FailedToGetSurface;

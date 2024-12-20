@@ -27,10 +27,6 @@
             .url = "git+https://github.com/kooparse/zalgebra.git#0ff2b6093a410b26a294d4ed53985882256072a1",
             .hash = "1220fbbcfa859f668d69b4f7d2aa621d13b128a77b46965e6c4aae35f9c1d7b85eb8",
         },
-        .zig_objc = .{
-            .url = "git+https://github.com/mitchellh/zig-objc.git#9b8ba849b0f58fe207ecd6ab7c147af55b17556e",
-            .hash = "1220e17e64ef0ef561b3e4b9f3a96a2494285f2ec31c097721bf8c8677ec4415c634",
-        },
     },
     .paths = .{
         "build.zig",

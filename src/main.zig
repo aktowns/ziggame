@@ -122,7 +122,13 @@ const kScreenHeight = 600;
 
 pub fn main() anyerror!void {
     // try g.wgpuInit();
-    const platform = try g.Platform.getCurrentPlatform();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        _ = gpa.deinit();
+    }
+
+    const platform = try g.Platform.getCurrentPlatform(allocator);
     std.log.info("Using platform: {s}", .{platform.name});
     _ = try g.GraphicsPlatform.init(.{ .windowHeight = 480, .windowWidth = 640, .windowTitle = "testing", .osPlatform = platform });
 

@@ -83,9 +83,12 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
             gpu_lib.linkFramework("Metal", .{});
             gpu_lib.linkFramework("QuartzCore", .{});
 
-            gpu_lib.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+            gpu_lib.addIncludePath(b.path("ext/osxextra/"));
+            gpu_lib.addLibraryPath(b.path("ext/osxextra/"));
+            gpu_lib.linkSystemLibrary("osxextra", .{ .preferred_link_mode = .static });
 
-            exe.root_module.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+            // gpu_lib.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
+            // exe.root_module.addImport("objc", b.dependency("zig_objc", .{ .target = target, .optimize = optimize }).module("objc"));
         } else if (target.result.os.tag == .linux) {
             gpu_lib.linkSystemLibrary("unwind", .{});
         }
