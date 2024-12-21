@@ -27,6 +27,14 @@
             .url = "git+https://github.com/kooparse/zalgebra.git#0ff2b6093a410b26a294d4ed53985882256072a1",
             .hash = "1220fbbcfa859f668d69b4f7d2aa621d13b128a77b46965e6c4aae35f9c1d7b85eb8",
         },
+        .xml = .{
+            .url = "git+https://github.com/ianprime0509/zig-xml.git#6c9f8b69fcc57a05ca513ec5b3db6f8fbebb6fad",
+            .hash = "12200db01caa0380c3d87b16fb761c0c0c1ef8eeb9e27d25e6d1fcb1b678c51b4231",
+        },
+        .pretty = .{
+            .url = "git+https://github.com/timfayz/pretty.git#6fbc0d45b7d397b67db0b0af8f2e2000036f977f",
+            .hash = "12209290db27d058b481801cf9a79c706fb0c482e7f6378d50495750aae19524d4b7",
+        },
     },
     .paths = .{
         "build.zig",

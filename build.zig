@@ -25,8 +25,14 @@ pub fn build(b: *Build) !void {
     // });
 
     const dep_zalgebra = b.dependency("zalgebra", .{ .target = target, .optimize = optimize });
+    const dep_xml = b.dependency("xml", .{ .target = target, .optimize = optimize });
+    const dep_pretty = b.dependency("pretty", .{ .target = target, .optimize = optimize });
 
-    const deps = [_]struct { []const u8, *Build.Dependency }{.{ "zalgebra", dep_zalgebra }};
+    const deps = [_]struct { []const u8, *Build.Dependency }{
+        .{ "zalgebra", dep_zalgebra },
+        .{ "xml", dep_xml },
+        .{ "pretty", dep_pretty },
+    };
 
     try buildNative(b, target, optimize, &deps);
     //if (target.result.isWasm()) {
@@ -53,6 +59,10 @@ pub fn build(b: *Build) !void {
 fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, other_deps: []const struct { []const u8, *Build.Dependency }) anyerror!void {
     const gpu_lib = b.addModule("gpu", .{ .root_source_file = b.path("src/engine/engine.zig"), .target = target, .optimize = optimize });
 
+    for (other_deps) |dep| {
+        gpu_lib.addImport(dep[0], dep[1].module(dep[0]));
+    }
+
     if (!target.result.isWasm()) {
         const exe = b.addExecutable(.{
             .name = "test",
@@ -66,7 +76,6 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
         }
 
         exe.linkLibC();
-        std.log.info("Non-webassembly target: {?}", .{builtin.target.os});
         exe.addIncludePath(b.path("ext/dawn/include/"));
         exe.addIncludePath(b.path("ext/dawn/include/webgpu/"));
 
