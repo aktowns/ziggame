@@ -3,19 +3,18 @@ const SurfaceTexture = @This();
 const std = @import("std");
 const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
-const TextureView = @import("TextureView.zig");
+const Texture = @import("Texture.zig");
 
 surfaceTexture: wg.WGPUSurfaceTexture,
+texture: Texture,
 
 pub fn init(surfaceTexture: wg.WGPUSurfaceTexture) @This() {
-    return .{ .surfaceTexture = surfaceTexture };
-}
-
-pub fn createView(self: *const @This(), descriptor: [*c]const wg.WGPUTextureViewDescriptor) TextureView {
-    const view = wg.wgpuTextureCreateView(self.surfaceTexture.texture, descriptor).?;
-    return TextureView.init(view);
+    return .{
+        .surfaceTexture = surfaceTexture,
+        .texture = Texture.init(surfaceTexture.texture.?),
+    };
 }
 
 pub fn deinit(self: *const @This()) void {
-    wg.wgpuTextureRelease(self.surfaceTexture.texture);
+    self.texture.deinit();
 }

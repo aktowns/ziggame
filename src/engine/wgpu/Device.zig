@@ -9,7 +9,13 @@ const PipelineLayout = @import("PipelineLayout.zig");
 const RenderPipeline = @import("RenderPipeline.zig");
 const ShaderModule = @import("ShaderModule.zig");
 const CommandEncoder = @import("CommandEncoder.zig");
+const Texture = @import("Texture.zig");
 const Error = @import("error.zig").Error;
+const Image = @import("../media/Image.zig");
+const Buffer = @import("Buffer.zig");
+const Sampler = @import("Sampler.zig");
+const BindGroupLayout = @import("BindGroupLayout.zig");
+const BindGroup = @import("BindGroup.zig");
 
 device: *wg.WGPUDeviceImpl,
 allocator: std.mem.Allocator,
@@ -80,4 +86,48 @@ pub fn createCommandEncoder(self: *const @This(), descriptor: [*c]const wg.WGPUC
     const enc = wg.wgpuDeviceCreateCommandEncoder(self.device, descriptor).?;
 
     return CommandEncoder.init(enc);
+}
+
+pub fn createTexture(self: *const @This(), descriptor: [*c]const wg.WGPUTextureDescriptor) Texture {
+    return Texture.init(wg.wgpuDeviceCreateTexture(self.device, descriptor).?);
+}
+
+pub fn createTextureFromImage(self: *const @This(), image: *const Image) Texture {
+    return self.createTexture(&wg.WGPUTextureDescriptor{
+        .label = u.stringView("image"),
+        .format = wg.WGPUTextureFormat_RGBA8Unorm,
+        .size = wg.WGPUExtent3D{
+            .height = @intCast(image.image.height),
+            .width = @intCast(image.image.width),
+            .depthOrArrayLayers = 1,
+        },
+        .mipLevelCount = 1,
+        .sampleCount = 1,
+        .dimension = wg.WGPUTextureDimension_2D,
+        .usage = wg.WGPUTextureUsage_TextureBinding | wg.WGPUTextureUsage_CopyDst | wg.WGPUTextureUsage_RenderAttachment,
+    });
+}
+
+pub fn createBuffer(self: *const @This(), descriptor: [*c]const wg.WGPUBufferDescriptor) Buffer {
+    const bfr = wg.wgpuDeviceCreateBuffer(self.device, descriptor).?;
+
+    return Buffer.init(bfr);
+}
+
+pub fn createSampler(self: *const @This(), descriptor: [*c]const wg.WGPUSamplerDescriptor) Sampler {
+    const sampler = wg.wgpuDeviceCreateSampler(self.device, descriptor).?;
+
+    return Sampler.init(sampler);
+}
+
+pub fn createBindGroupLayout(self: *const @This(), descriptor: [*c]const wg.WGPUBindGroupLayoutDescriptor) BindGroupLayout {
+    const bgl = wg.wgpuDeviceCreateBindGroupLayout(self.device, descriptor).?;
+
+    return BindGroupLayout.init(bgl);
+}
+
+pub fn createBindGroup(self: *const @This(), descriptor: [*c]const wg.WGPUBindGroupDescriptor) BindGroup {
+    const bg = wg.wgpuDeviceCreateBindGroup(self.device, descriptor).?;
+
+    return BindGroup.init(bg);
 }

@@ -5,7 +5,7 @@ const pretty = @import("pretty");
 const Vec3 = za.Vec3;
 const Vec2 = za.Vec2;
 
-const g = @import("gpu");
+const engine = @import("engine");
 
 const Rectangle = struct {
     position: Vec2,
@@ -129,14 +129,14 @@ pub fn main() anyerror!void {
         _ = gpa.deinit();
     }
 
-    const map = try g.tiled.Map.init(allocator, "test.tmx");
-    defer map.deinit();
-    std.log.info("map={?}", .{map});
-    try pretty.print(allocator, map, .{ .array_max_len = 3, .max_depth = 20, .slice_u8_is_str = false });
+    // const map = try engine.tiled.Map.init(allocator, "test.tmx");
+    // defer map.deinit();
+    // std.log.info("map={?}", .{map});
+    // try pretty.print(allocator, map, .{ .array_max_len = 3, .max_depth = 20, .slice_u8_is_str = false });
 
-    // const platform = try g.Platform.getCurrentPlatform(allocator);
-    // std.log.info("Using platform: {s}", .{platform.name});
-    // _ = try g.GraphicsPlatform.init(.{ .windowHeight = 480, .windowWidth = 640, .windowTitle = "testing", .osPlatform = platform });
+    const platform = try engine.Platform.getCurrentPlatform(allocator);
+    std.log.info("Using platform: {s}", .{platform.name});
+    _ = try engine.GraphicsPlatform.init(.{ .windowHeight = 480, .windowWidth = 640, .windowTitle = "testing", .osPlatform = platform });
 
     //sapp.run(.{ .init_cb = init, .frame_cb = frame, .event_cb = input, .cleanup_cb = cleanup, .width = kScreenWidth, .height = kScreenHeight, .sample_count = 4, .icon = .{ .sokol_default = true }, .window_title = "test", .logger = .{ .func = slog.func } });
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)

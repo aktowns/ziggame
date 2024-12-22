@@ -52,6 +52,7 @@ pub fn requestAdapter(self: *const @This(), options: [*c]const wg.WGPURequestAda
     // TODO: Implement proper waiting
     while (self.adapter == null) {
         std.log.debug("[Instance] Waiting for adapter", .{});
+        std.Thread.sleep(10000*1000);
     }
 
     std.log.debug("[Instance] got adapter", .{});
