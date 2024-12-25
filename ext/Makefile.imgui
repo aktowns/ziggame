@@ -15,6 +15,7 @@ install:
 	mv libimgui_backend.a ../../sysroot/lib/
 	cp -v imgui/backends/imgui_impl_wgpu.h ../../sysroot/include/imgui/
 	cp -v imgui/backends/imgui_impl_glfw.h ../../sysroot/include/imgui/
+	ln -s cimgui.a ../../sysroot/lib/libcimgui.a
 
 update:
 	git pull

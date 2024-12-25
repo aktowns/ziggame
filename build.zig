@@ -43,8 +43,7 @@ fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) vo
         c.linkSystemLibrary("webgpu_dawn", .{});
         c.linkSystemLibrary("openal", .{});
         c.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
-        const imgui_path = std.fs.cwd().realpathAlloc(b.allocator, "sysroot/lib/cimgui.a") catch unreachable;
-        c.linkSystemLibrary(imgui_path, .{ .preferred_link_mode = .static, .use_pkg_config = .no });
+        c.linkSystemLibrary("cimgui", .{ .preferred_link_mode = .static });
         c.linkSystemLibrary("imgui_backend", .{});
     } else {}
 
