@@ -1,6 +1,7 @@
 const za = @import("zalgebra");
 const std = @import("std");
 const pretty = @import("pretty");
+const builtin = @import("builtin");
 
 const Vec3 = za.Vec3;
 const Vec2 = za.Vec2;
@@ -122,21 +123,37 @@ const kScreenHeight = 600;
 // }
 
 pub fn main() anyerror!void {
-    // try g.wgpuInit();
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
     defer {
         _ = gpa.deinit();
     }
+
+    const allocator: std.mem.Allocator = if (builtin.target.isWasm()) alloc: {
+        const wa = std.heap.c_allocator;
+        _ = try wa.alloc(u8, 10);
+        break :alloc wa;
+    } else alloc: {
+        //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        const allocator = gpa.allocator();
+        break :alloc allocator;
+    };
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer {
+    //     _ = gpa.deinit();
+    // }
+    //const allocator = gpa.allocator();
 
     // const map = try engine.tiled.Map.init(allocator, "test.tmx");
     // defer map.deinit();
     // std.log.info("map={?}", .{map});
     // try pretty.print(allocator, map, .{ .array_max_len = 3, .max_depth = 20, .slice_u8_is_str = false });
 
-    const platform = try engine.Platform.getCurrentPlatform(allocator);
-    std.log.info("Using platform: {s}", .{platform.name});
-    _ = try engine.GraphicsPlatform.init(.{ .windowHeight = 480, .windowWidth = 640, .windowTitle = "testing", .osPlatform = platform });
+    var platform = try engine.Platform.getCurrentPlatform(allocator);
+    defer platform.deinit();
+    std.log.info("[Main] Using platform: {s}", .{platform.name});
+    const gfx = try engine.GraphicsPlatform.init(.{ .window_height = 480, .window_width = 640, .window_title = "ZenEng", .platform = platform });
+    defer gfx.deinit();
+    try gfx.start();
 
     //sapp.run(.{ .init_cb = init, .frame_cb = frame, .event_cb = input, .cleanup_cb = cleanup, .width = kScreenWidth, .height = kScreenHeight, .sample_count = 4, .icon = .{ .sokol_default = true }, .window_title = "test", .logger = .{ .func = slog.func } });
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)

@@ -4,12 +4,12 @@ const std = @import("std");
 const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
 
-shaderModule: *wg.WGPUShaderModuleImpl,
+native: *wg.WGPUShaderModuleImpl,
 
-pub fn init(shaderModule: *wg.WGPUShaderModuleImpl) @This() {
-    return .{ .shaderModule = shaderModule };
+pub fn init(shader_module: *wg.WGPUShaderModuleImpl) @This() {
+    return .{ .native = shader_module };
 }
 
 pub fn deinit(self: *const @This()) void {
-    wg.wgpuShaderModuleRelease(self.shaderModule);
+    wg.wgpuShaderModuleRelease(self.native);
 }

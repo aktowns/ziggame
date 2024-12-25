@@ -5,12 +5,12 @@ const cincludes = @import("../cincludes.zig");
 
 const wg = cincludes.wg;
 
-sampler: *wg.WGPUSamplerImpl,
+native: *wg.WGPUSamplerImpl,
 
 pub fn init(sampler: *wg.WGPUSamplerImpl) @This() {
-    return .{ .sampler = sampler };
+    return .{ .native = sampler };
 }
 
 pub fn deinit(self: *const @This()) void {
-    wg.wgpuSamplerRelease(self.sampler);
+    wg.wgpuSamplerRelease(self.native);
 }

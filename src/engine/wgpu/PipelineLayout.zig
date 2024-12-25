@@ -4,12 +4,12 @@ const std = @import("std");
 const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
 
-pipelineLayout: *wg.WGPUPipelineLayoutImpl,
+native: *wg.WGPUPipelineLayoutImpl,
 
-pub fn init(pipelineLayout: *wg.WGPUPipelineLayoutImpl) @This() {
-    return .{ .pipelineLayout = pipelineLayout };
+pub fn init(pipeline_layout: *wg.WGPUPipelineLayoutImpl) @This() {
+    return .{ .native = pipeline_layout };
 }
 
 pub fn deinit(self: *const @This()) void {
-    wg.wgpuPipelineLayoutRelease(self.pipelineLayout);
+    wg.wgpuPipelineLayoutRelease(self.native);
 }

@@ -4,12 +4,12 @@ const std = @import("std");
 const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
 
-bindGroup: *wg.WGPUBindGroupImpl,
+native: *wg.WGPUBindGroupImpl,
 
-pub fn init(bindGroup: *wg.WGPUBindGroupImpl) @This() {
-    return .{ .bindGroup = bindGroup };
+pub fn init(bind_group: *wg.WGPUBindGroupImpl) @This() {
+    return .{ .native = bind_group };
 }
 
 pub fn deinit(self: *const @This()) void {
-    wg.wgpuBindGroupRelease(self.bindGroup);
+    wg.wgpuBindGroupRelease(self.native);
 }

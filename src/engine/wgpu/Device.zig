@@ -1,6 +1,7 @@
 const Device = @This();
 
 const std = @import("std");
+const builtin = @import("builtin");
 const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
 const u = @import("../util.zig");
@@ -16,46 +17,41 @@ const Buffer = @import("Buffer.zig");
 const Sampler = @import("Sampler.zig");
 const BindGroupLayout = @import("BindGroupLayout.zig");
 const BindGroup = @import("BindGroup.zig");
+const Platform = @import("../Platform.zig");
 
-device: *wg.WGPUDeviceImpl,
-allocator: std.mem.Allocator,
+native: *wg.WGPUDeviceImpl,
+platform: *const Platform,
+sentinel: ?*u8 = null,
 
-pub fn init(device: *wg.WGPUDeviceImpl, allocator: std.mem.Allocator) @This() {
-    return .{ .device = device, .allocator = allocator };
+pub fn init(platform: *const Platform, device: *wg.WGPUDeviceImpl) @This() {
+    return .{ .native = device, .platform = platform, .sentinel = platform.sentinel() };
 }
 
 pub fn getQueue(self: *const @This()) Queue {
-    return Queue.init(wg.wgpuDeviceGetQueue(self.device).?);
+    return Queue.init(wg.wgpuDeviceGetQueue(self.native).?);
 }
 
 pub fn createPipelineLayout(self: *const @This(), pipelineLayout: [*c]const wg.WGPUPipelineLayoutDescriptor) PipelineLayout {
-    // nextInChain: [*c]const WGPUChainedStruct = @import("std").mem.zeroes([*c]const WGPUChainedStruct),
-    // label: WGPUStringView = @import("std").mem.zeroes(WGPUStringView),
-    // bindGroupLayoutCount: usize = @import("std").mem.zeroes(usize),
-    // bindGroupLayouts: [*c]const WGPUBindGroupLayout = @import("std").mem.zeroes([*c]const WGPUBindGroupLayout),
-    // immediateDataRangeByteSize: u32 = @import("std").mem.zeroes(u32),
-
-    return PipelineLayout.init(wg.wgpuDeviceCreatePipelineLayout(self.device, pipelineLayout).?);
+    return PipelineLayout.init(wg.wgpuDeviceCreatePipelineLayout(self.native, pipelineLayout).?);
 }
 
 pub fn createRenderPipeline(self: *const @This(), descriptor: [*c]const wg.WGPURenderPipelineDescriptor) RenderPipeline {
-    return RenderPipeline.init(wg.wgpuDeviceCreateRenderPipeline(self.device, descriptor).?);
+    return RenderPipeline.init(wg.wgpuDeviceCreateRenderPipeline(self.native, descriptor).?);
 }
 
 pub fn createShaderModule(self: *const @This(), descriptor: [*c]const wg.WGPUShaderModuleDescriptor) ShaderModule {
-    return ShaderModule.init(wg.wgpuDeviceCreateShaderModule(self.device, descriptor).?);
+    return ShaderModule.init(wg.wgpuDeviceCreateShaderModule(self.native, descriptor).?);
 }
 
 pub fn createShaderModuleFromSource(self: *const @This(), contents: []u8) ShaderModule {
-    // return wgpu.wgpuDeviceCreateShaderModule(device,
-    // &wgpu.WGPUShaderModuleDescriptor{ .label = name,
-    // .nextInChain = @as(*wgpu.WGPUChainedStruct, @constCast(@ptrCast(&wgpu.WGPUShaderModuleWGSLDescriptor{ .chain = wgpu.WGPUChainedStruct{ .sType = wgpu.WGPUSType_ShaderModuleWGSLDescriptor }, .code = buffer.ptr }))) });
+    const shader_source = if (builtin.target.isWasm()) wg.WGPUSType_ShaderModuleWGSLDescriptor else wg.WGPUSType_ShaderSourceWGSL;
+
     return self.createShaderModule(&wg.WGPUShaderModuleDescriptor{
         .label = u.stringView("Shader"),
         .nextInChain = @as(*wg.WGPUChainedStruct, @constCast(@ptrCast(
             &wg.WGPUShaderModuleWGSLDescriptor{
                 .chain = wg.WGPUChainedStruct{
-                    .sType = wg.WGPUSType_ShaderSourceWGSL,
+                    .sType = shader_source,
                 },
                 .code = u.stringViewR(contents),
             },
@@ -63,33 +59,14 @@ pub fn createShaderModuleFromSource(self: *const @This(), contents: []u8) Shader
     });
 }
 
-pub fn createShaderModuleFromFile(self: *const @This(), name: [:0]const u8) Error!ShaderModule {
-    const path = std.fs.cwd().realpathAlloc(self.allocator, ".") catch return Error.FailedToCreateShader;
-    defer self.allocator.free(path);
-
-    const shader_path = std.fs.path.join(self.allocator, &[_][]const u8{ path, "resources", "shaders", name }) catch return Error.FailedToCreateShader;
-    defer self.allocator.free(shader_path);
-
-    std.log.debug("[Shader] Opening shader at {s}", .{shader_path});
-
-    const file = std.fs.cwd().openFile(shader_path, .{}) catch return Error.FailedToCreateShader;
-    defer file.close();
-
-    const stat = file.stat() catch return Error.FailedToCreateShader;
-    const buffer = file.readToEndAllocOptions(self.allocator, stat.size, null, @alignOf(u8), 0) catch return Error.FailedToCreateShader;
-    defer self.allocator.free(buffer);
-
-    return self.createShaderModuleFromSource(buffer);
-}
-
 pub fn createCommandEncoder(self: *const @This(), descriptor: [*c]const wg.WGPUCommandEncoderDescriptor) CommandEncoder {
-    const enc = wg.wgpuDeviceCreateCommandEncoder(self.device, descriptor).?;
+    const enc = wg.wgpuDeviceCreateCommandEncoder(self.native, descriptor).?;
 
     return CommandEncoder.init(enc);
 }
 
 pub fn createTexture(self: *const @This(), descriptor: [*c]const wg.WGPUTextureDescriptor) Texture {
-    return Texture.init(wg.wgpuDeviceCreateTexture(self.device, descriptor).?);
+    return Texture.init(wg.wgpuDeviceCreateTexture(self.native, descriptor).?);
 }
 
 pub fn createTextureFromImage(self: *const @This(), image: *const Image) Texture {
@@ -109,25 +86,25 @@ pub fn createTextureFromImage(self: *const @This(), image: *const Image) Texture
 }
 
 pub fn createBuffer(self: *const @This(), descriptor: [*c]const wg.WGPUBufferDescriptor) Buffer {
-    const bfr = wg.wgpuDeviceCreateBuffer(self.device, descriptor).?;
+    const bfr = wg.wgpuDeviceCreateBuffer(self.native, descriptor).?;
 
     return Buffer.init(bfr);
 }
 
 pub fn createSampler(self: *const @This(), descriptor: [*c]const wg.WGPUSamplerDescriptor) Sampler {
-    const sampler = wg.wgpuDeviceCreateSampler(self.device, descriptor).?;
+    const sampler = wg.wgpuDeviceCreateSampler(self.native, descriptor).?;
 
     return Sampler.init(sampler);
 }
 
 pub fn createBindGroupLayout(self: *const @This(), descriptor: [*c]const wg.WGPUBindGroupLayoutDescriptor) BindGroupLayout {
-    const bgl = wg.wgpuDeviceCreateBindGroupLayout(self.device, descriptor).?;
+    const bgl = wg.wgpuDeviceCreateBindGroupLayout(self.native, descriptor).?;
 
     return BindGroupLayout.init(bgl);
 }
 
 pub fn createBindGroup(self: *const @This(), descriptor: [*c]const wg.WGPUBindGroupDescriptor) BindGroup {
-    const bg = wg.wgpuDeviceCreateBindGroup(self.device, descriptor).?;
+    const bg = wg.wgpuDeviceCreateBindGroup(self.native, descriptor).?;
 
     return BindGroup.init(bg);
 }

@@ -4,12 +4,12 @@ const std = @import("std");
 const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
 
-bindGroupLayout: *wg.WGPUBindGroupLayoutImpl,
+native: *wg.WGPUBindGroupLayoutImpl,
 
-pub fn init(bindGroupLayout: *wg.WGPUBindGroupLayoutImpl) @This() {
-    return .{ .bindGroupLayout = bindGroupLayout };
+pub fn init(bind_group_layout: *wg.WGPUBindGroupLayoutImpl) @This() {
+    return .{ .native = bind_group_layout };
 }
 
 pub fn deinit(self: *const @This()) void {
-    wg.wgpuBindGroupLayoutRelease(self.bindGroupLayout);
+    wg.wgpuBindGroupLayoutRelease(self.native);
 }

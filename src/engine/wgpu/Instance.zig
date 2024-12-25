@@ -1,61 +1,65 @@
 const Instance = @This();
 
 const std = @import("std");
+const builtin = @import("builtin");
 const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
 const Adapter = @import("Adapter.zig");
 const Surface = @import("Surface.zig");
 const Error = @import("error.zig").Error;
+const Platform = @import("../Platform.zig");
 const u = @import("../util.zig");
+const log = @import("../log.zig");
 
-instance: *wg.WGPUInstanceImpl,
+native: *wg.WGPUInstanceImpl,
 adapter: ?Adapter = null,
-allocator: std.mem.Allocator,
+platform: *const Platform,
+sentinel: ?*u8 = null,
 
-pub fn init(allocator: std.mem.Allocator) Error!@This() {
+pub fn init(platform: *const Platform) Error!@This() {
     const instance = wg.wgpuCreateInstance(null) orelse return Error.FailedToCreateInstance;
-    return .{ .instance = instance, .allocator = allocator };
+    return .{ .native = instance, .platform = platform, .sentinel = platform.sentinel() };
 }
 
 pub fn createSurface(self: *const @This(), descriptor: [*c]const wg.WGPUSurfaceDescriptor) Error!Surface {
-    const surface = wg.wgpuInstanceCreateSurface(self.instance, descriptor);
+    const surface = wg.wgpuInstanceCreateSurface(self.native, descriptor);
 
     return Surface.init(surface.?, self);
 }
 
-pub fn createSurfaceFromSource(self: *const @This(), source: Surface.SurfaceSource) Error!Surface {
-    const surface_descriptor = switch (source) {
-        .MacOS => |chain| wg.WGPUSurfaceDescriptor{ .nextInChain = @ptrCast(&chain), .label = u.stringView("MacOSSurface") },
-        .Linux => |chain| wg.WGPUSurfaceDescriptor{ .nextInChain = @ptrCast(&chain), .label = u.stringView("LinuxSurface") },
-        .Windows => |chain| wg.WGPUSurfaceDescriptor{ .nextInChain = @ptrCast(&chain), .label = u.stringView("WindowsSurface") },
-        .Web => |chain| wg.WGPUSurfaceDescriptor{ .nextInChain = @ptrCast(&chain), .label = u.stringView("WebSurface") },
+pub fn createSurfaceFromNative(self: *const @This(), source: Platform.NativeSurface) Error!Surface {
+    const surface_descriptor = wg.WGPUSurfaceDescriptor{
+        .nextInChain = @ptrCast(&source),
+        .label = u.stringView("Surface"),
     };
 
     return self.createSurface(&surface_descriptor);
 }
 
-export fn handle_request_adapter(status: wg.WGPURequestDeviceStatus, adapter: wg.WGPUAdapter, message: wg.WGPUStringView, userData: ?*anyopaque) void {
-    std.log.debug("[Instance] request_adapter status={d}", .{status});
+export fn handle_request_adapter(status: wg.WGPURequestDeviceStatus, adapter: wg.WGPUAdapter, message: u.StringView, userData: ?*anyopaque) void {
+    log.debug(@src(), "request_adapter status={d}", .{status});
     if (status == wg.WGPURequestAdapterStatus_Success) {
         const inst = @as(?*Instance, @alignCast(@ptrCast(userData))).?;
-        inst.adapter = Adapter.init(adapter.?, inst.allocator);
+        inst.adapter = Adapter.init(inst.platform, adapter.?);
     } else {
-        std.log.err("[Instance] request_adapter status={d} message={s}", .{ status, message.data });
+        log.err(@src(), "request_adapter status={d} message={s}", .{ status, u.stringViewData(message) });
     }
 }
 
 pub fn requestAdapter(self: *const @This(), options: [*c]const wg.WGPURequestAdapterOptions) Adapter {
     if (self.adapter == null) {
-        wg.wgpuInstanceRequestAdapter(self.instance, options, handle_request_adapter, @ptrCast(@constCast(self)));
+        log.debug(@src(), "Requesting new adapter", .{});
+        wg.wgpuInstanceRequestAdapter(self.native, options, handle_request_adapter, @ptrCast(@constCast(self)));
     }
 
     // TODO: Implement proper waiting
     while (self.adapter == null) {
-        std.log.debug("[Instance] Waiting for adapter", .{});
-        std.Thread.sleep(10000*1000);
+        log.debug(@src(), "Waiting for adapter", .{});
+
+        Platform.sleep(1000);
     }
 
-    std.log.debug("[Instance] got adapter", .{});
+    log.debug(@src(), "got adapter", .{});
 
     return self.adapter.?;
 }

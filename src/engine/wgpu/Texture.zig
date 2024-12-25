@@ -2,20 +2,21 @@ const Texture = @This();
 
 const std = @import("std");
 const cincludes = @import("../cincludes.zig");
+const u = @import("../util.zig");
 const wg = cincludes.wg;
 const TextureView = @import("TextureView.zig");
 
-texture: *wg.WGPUTextureImpl,
+native: *wg.WGPUTextureImpl,
 
 pub fn init(texture: *wg.WGPUTextureImpl) @This() {
-    return .{ .texture = texture };
+    return .{ .native = texture };
 }
 
 pub fn deinit(self: *const @This()) void {
-    wg.wgpuTextureRelease(self.texture);
+    wg.wgpuTextureRelease(self.native);
 }
 
 pub fn createView(self: *const @This(), descriptor: [*c]const wg.WGPUTextureViewDescriptor) TextureView {
-    const view = wg.wgpuTextureCreateView(self.texture, descriptor).?;
+    const view = wg.wgpuTextureCreateView(self.native, descriptor).?;
     return TextureView.init(view);
 }

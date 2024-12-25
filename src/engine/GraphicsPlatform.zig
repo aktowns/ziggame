@@ -7,26 +7,43 @@ const wg = cincludes.wg;
 const glfw = cincludes.glfw;
 const u = @import("util.zig");
 const Platform = @import("Platform.zig");
+const Filesystem = @import("filesystem/Filesystem.zig");
 
 const w = @import("wgpu/wgpu.zig");
 const Instance = w.Instance;
 const Surface = w.Surface;
+const Device = w.Device;
+const Adapter = w.Adapter;
+const Queue = w.Queue;
 const Texture = w.Texture;
+const BindGroup = w.BindGroup;
+const Buffer = w.Buffer;
+const RenderPipeline = w.RenderPipeline;
+const ShaderModule = w.ShaderModule;
 const Image = @import("media/Image.zig");
+const log = @import("log.zig");
 
 instance: Instance,
 surface: Surface,
-adapter: wg.WGPUAdapter,
-device: wg.WGPUDevice,
-config: ?*wg.WGPUSurfaceConfiguration,
+adapter: Adapter,
+device: Device,
+queue: Queue,
+config: *wg.WGPUSurfaceConfiguration,
+render_pipeline: RenderPipeline,
+image: Image,
+texture: Texture,
+img_bind_group: BindGroup,
+vertex_buffer: Buffer,
+index_buffer: Buffer,
+window: *glfw.GLFWwindow,
 
 pub const Error = error{ FailedToCreateInstance, FailedToInitializeGLFW, FailedToGetSurface };
 
 pub const GraphicsPlatformOptions = struct {
-    windowTitle: []const u8,
-    windowWidth: u32,
-    windowHeight: u32,
-    osPlatform: Platform,
+    window_title: []const u8,
+    window_width: u32,
+    window_height: u32,
+    platform: Platform,
 };
 
 const Vertex = struct {
@@ -50,6 +67,7 @@ const Vertex = struct {
 //      .   .   .
 //      .    .  .
 //      .     . .
+//      .      ..
 //  (3) ......... (2)
 //
 // 0.0, 0.0 => top left tex coord == top left
@@ -68,12 +86,27 @@ const vertices: [4]Vertex = .{
 
 const indices: [6]u16 = .{ 0, 1, 2, 2, 3, 0 };
 
-pub fn init(options: GraphicsPlatformOptions) !@This() {
-    std.log.info("Creating webgpu instance", .{});
-    const instance = try Instance.init(options.osPlatform.allocator);
-    // const instance = wg.wgpuCreateInstance(null) orelse return Error.FailedToCreateInstance;
+pub fn createShaderModuleFromFile(platform: *const Platform, device: *const Device, name: [:0]const u8) !ShaderModule {
+    log.debug(@src(), "Opening shader at {s}", .{name});
 
-    std.log.debug("[GraphicsPlatform] Initializing GLFW", .{});
+    const buffer = try platform.filesystem.readFile(name, Filesystem.ResourceType.Shaders);
+
+    return device.createShaderModuleFromSource(@constCast(buffer));
+}
+
+export fn animation_frame_cb(user_data: ?*anyopaque) void {
+    const self = @as(*@This(), @alignCast(@ptrCast(user_data)));
+    self.mainLoop() catch |err| {
+        std.log.debug("mainloop error {?}", .{err});
+    };
+}
+
+pub fn init(options: GraphicsPlatformOptions) !@This() {
+    log.debug(@src(), "Creating webgpu instance", .{});
+
+    const instance = try Instance.init(&options.platform);
+
+    log.debug(@src(), "Initializing GLFW", .{});
     if (glfw.glfwInit() != 1) {
         std.log.err("failed to initialize glfw: {?s}", .{"?"});
         return Error.FailedToInitializeGLFW;
@@ -81,38 +114,44 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
 
     glfw.glfwWindowHint(glfw.GLFW_CLIENT_API, glfw.GLFW_NO_API);
 
+    if (builtin.target.isWasm()) {
+        log.debug(@src(), "forcing emscripten selector", .{});
+        cincludes.glfw.emscripten_glfw_set_next_window_canvas_selector("#canvas");
+    }
+
     const window = glfw.glfwCreateWindow(
-        @intCast(options.windowWidth),
-        @intCast(options.windowHeight),
-        @as([*c]const u8, @ptrCast(options.windowTitle)),
+        @intCast(options.window_width),
+        @intCast(options.window_height),
+        @as([*c]const u8, @ptrCast(options.window_title)),
         null,
         null,
     ).?;
 
-    // const surface_descriptor = options.osPlatform.surface_descriptor(window);
-    const surfaceSource = options.osPlatform.getSurfaceSource(window) catch |err| {
-        std.log.err("Failed to get surface: {?}", .{err});
-        return Error.FailedToGetSurface;
-    };
+    const surface_source = options.platform.getSurfaceSource(window);
 
-    std.log.debug("[GraphicsPlatform] Creating surface (from source {?})", .{surfaceSource});
-    const surface = try instance.createSurfaceFromSource(surfaceSource);
+    log.debug(@src(), "Creating surface (from source {?})", .{surface_source});
+    const surface = try instance.createSurfaceFromNative(surface_source);
 
-    const toggles = [_][*c]const u8{ "dump_shaders", "disable_symbol_renaming" };
-    const togglesDesc = wg.WGPUDawnTogglesDescriptor{
-        .enabledToggles = @ptrCast(&toggles),
-        .enabledToggleCount = toggles.len,
-    };
-    const adapter = instance.requestAdapter(@ptrCast(&wg.WGPUDeviceDescriptor{
-        .nextInChain = @ptrCast(&togglesDesc),
-    }));
+    const adapter_options: *wg.WGPURequestAdapterOptions = if (!builtin.target.isWasm()) opts: {
+        const toggles = [_][*c]const u8{ "dump_shaders", "disable_symbol_renaming" };
+        const toggles_desc = wg.WGPUDawnTogglesDescriptor{
+            .enabledToggles = @ptrCast(&toggles),
+            .enabledToggleCount = toggles.len,
+        };
+        break :opts @constCast(@ptrCast(&wg.WGPURequestAdapterOptions{
+            .compatibleSurface = surface.native,
+            .nextInChain = @ptrCast(&toggles_desc),
+        }));
+    } else @constCast(&wg.WGPURequestAdapterOptions{ .compatibleSurface = surface.native });
+    const adapter = instance.requestAdapter(adapter_options);
+
     const device = adapter.requestDevice(null);
     const queue = device.getQueue();
 
-    const shaderModule = try device.createShaderModuleFromFile("shader.wgsl");
-    defer shaderModule.deinit();
+    const shader_module = try createShaderModuleFromFile(&options.platform, &device, "/shader.wgsl");
+    //defer shaderModule.deinit();
 
-    const bindGroupLayout = device.createBindGroupLayout(&wg.WGPUBindGroupLayoutDescriptor{
+    const bind_group_layout = device.createBindGroupLayout(&wg.WGPUBindGroupLayoutDescriptor{
         .label = u.stringView("bind_group_layout"),
         .entryCount = 2,
         .entries = &[_]wg.WGPUBindGroupLayoutEntry{
@@ -135,17 +174,17 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
         },
     });
 
-    const pipelineLayout = device.createPipelineLayout(&wg.WGPUPipelineLayoutDescriptor{
+    const pipeline_layout = device.createPipelineLayout(&wg.WGPUPipelineLayoutDescriptor{
         .label = u.stringView("pipeline_layout"),
-        .bindGroupLayouts = &[_]wg.WGPUBindGroupLayout{bindGroupLayout.bindGroupLayout},
+        .bindGroupLayouts = &[_]wg.WGPUBindGroupLayout{bind_group_layout.native},
         .bindGroupLayoutCount = 1,
     });
-    defer pipelineLayout.deinit();
+    // defer pipelineLayout.deinit();
 
     const caps = surface.capabilities();
-    defer wg.wgpuSurfaceCapabilitiesFreeMembers(caps);
+    //defer wg.wgpuSurfaceCapabilitiesFreeMembers(caps);
 
-    const bufferLayout = wg.WGPUVertexBufferLayout{
+    const buffer_layout = wg.WGPUVertexBufferLayout{
         .arrayStride = @sizeOf(Vertex),
         .stepMode = wg.WGPUVertexStepMode_Vertex,
         .attributes = &[_]wg.WGPUVertexAttribute{
@@ -165,17 +204,17 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
         .attributeCount = 2,
     };
 
-    const renderPipeline = device.createRenderPipeline(&wg.WGPURenderPipelineDescriptor{
+    const render_pipeline = device.createRenderPipeline(&wg.WGPURenderPipelineDescriptor{
         .label = u.stringView("render_pipeline"),
-        .layout = pipelineLayout.pipelineLayout,
+        .layout = pipeline_layout.native,
         .vertex = wg.WGPUVertexState{
-            .module = shaderModule.shaderModule,
+            .module = shader_module.native,
             .entryPoint = u.stringView("vs_main"),
-            .buffers = &[_]wg.WGPUVertexBufferLayout{bufferLayout},
+            .buffers = &[_]wg.WGPUVertexBufferLayout{buffer_layout},
             .bufferCount = 1,
         },
         .fragment = &wg.WGPUFragmentState{
-            .module = shaderModule.shaderModule,
+            .module = shader_module.native,
             .entryPoint = u.stringView("fs_main"),
             .targetCount = 1,
             .targets = &[_]wg.WGPUColorTargetState{
@@ -193,11 +232,11 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
             .mask = 0xFFFFFFFF,
         },
     });
-    defer renderPipeline.deinit();
+    // defer renderPipeline.deinit();
 
     const config = @constCast(
         &wg.WGPUSurfaceConfiguration{
-            .device = device.device,
+            .device = device.native,
             .usage = wg.WGPUTextureUsage_RenderAttachment,
             .format = caps.formats[0],
             .presentMode = wg.WGPUPresentMode_Fifo,
@@ -215,24 +254,24 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
 
     surface.configure(config);
 
-    const image = try Image.init(options.osPlatform.allocator, "maps/tilemap.png");
+    const image = try Image.init(&options.platform, "/tilemap.png");
     const txtr = device.createTextureFromImage(&image);
-    const txtrView = txtr.createView(null);
+    const txtr_view = txtr.createView(null);
 
-    const vertexBuffer = device.createBuffer(&wg.WGPUBufferDescriptor{
+    const vertex_buffer = device.createBuffer(&wg.WGPUBufferDescriptor{
         .label = u.stringView("vertex_buffer"),
         .size = @intCast(@sizeOf(Vertex) * vertices.len),
         .usage = wg.WGPUBufferUsage_Vertex | wg.WGPUBufferUsage_CopyDst,
     });
 
-    const indexBuffer = device.createBuffer(&wg.WGPUBufferDescriptor{
+    const index_buffer = device.createBuffer(&wg.WGPUBufferDescriptor{
         .label = u.stringView("index_buffer"),
         .size = @intCast(@sizeOf(u16) * indices.len),
         .usage = wg.WGPUBufferUsage_Index | wg.WGPUBufferUsage_CopyDst,
     });
 
-    queue.writeBuffer(vertexBuffer, 0, std.mem.asBytes(&vertices));
-    queue.writeBuffer(indexBuffer, 0, std.mem.asBytes(&indices));
+    queue.writeBuffer(vertex_buffer, 0, std.mem.asBytes(&vertices));
+    queue.writeBuffer(index_buffer, 0, std.mem.asBytes(&indices));
 
     const sampler = device.createSampler(&wg.WGPUSamplerDescriptor{
         .label = u.stringView("sampler"),
@@ -248,112 +287,137 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
         .maxAnisotropy = 1,
     });
 
-    const imgBindGroup = device.createBindGroup(&wg.WGPUBindGroupDescriptor{
+    const img_bind_group = device.createBindGroup(&wg.WGPUBindGroupDescriptor{
         .label = u.stringView("bind_group"),
-        .layout = bindGroupLayout.bindGroupLayout,
+        .layout = bind_group_layout.native,
         .entryCount = 2,
         .entries = &[_]wg.WGPUBindGroupEntry{
             wg.WGPUBindGroupEntry{
                 .binding = 0,
-                .textureView = txtrView.textureView,
+                .textureView = txtr_view.native,
             },
             wg.WGPUBindGroupEntry{
                 .binding = 1,
-                .sampler = sampler.sampler,
+                .sampler = sampler.native,
             },
         },
     });
 
-    while (glfw.glfwWindowShouldClose(window) == glfw.GLFW_FALSE) {
-        glfw.glfwPollEvents();
-
-        const tryTexture = try surface.getSurfaceTexture();
-        const surfaceTexture = switch (tryTexture) {
-            .Success => |texture| texture,
-            .Timeout, .Outdated, .Lost => {
-                var width: c_int = 0;
-                var height: c_int = 0;
-                glfw.glfwGetWindowSize(window, &width, &height);
-                if (width != 0 and height != 0) {
-                    config.width = @intCast(width);
-                    config.height = @intCast(height);
-                    surface.configure(config);
-                }
-                continue;
-            },
-            .OutOfMemory, .DeviceLost, .Force32 => {
-                std.log.err("[GraphicsPlatform] get_current_texture status={?}", .{tryTexture});
-                std.process.exit(1);
-            },
-        };
-
-        queue.writeImageToTexture(&image, &txtr);
-        // queue.copyExternalImageToTexture(&image, &surfaceTexture.texture);
-
-        const frame = surfaceTexture.texture.createView(null);
-        // const frame = txtr.createView(null);
-        const commandEncoder = device.createCommandEncoder(
-            &wg.WGPUCommandEncoderDescriptor{
-                .label = u.stringView("command_encoder"),
-            },
-        );
-
-        const renderPassEncoder = commandEncoder.beginRenderPass(
-            &wg.WGPURenderPassDescriptor{
-                .label = u.stringView("render_pass_encoder"),
-                .colorAttachmentCount = 1,
-                .colorAttachments = &[_]wg.WGPURenderPassColorAttachment{
-                    wg.WGPURenderPassColorAttachment{
-                        .view = frame.textureView,
-                        .loadOp = wg.WGPULoadOp_Clear,
-                        .storeOp = wg.WGPUStoreOp_Store,
-                        .depthSlice = wg.WGPU_DEPTH_SLICE_UNDEFINED,
-                        .clearValue = u.colour(0.5, 0.5, 0.5, 1.0),
-                    },
-                },
-            },
-        );
-
-        renderPassEncoder.setPipeline(&renderPipeline);
-        renderPassEncoder.setBindGroup(0, &imgBindGroup, &.{});
-        renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, @sizeOf(Vertex) * vertices.len);
-        renderPassEncoder.setIndexBuffer(indexBuffer, wg.WGPUIndexFormat_Uint16, 0, @sizeOf(u16) * indices.len);
-        // renderPassEncoder.draw(3, 1, 0, 0);
-        renderPassEncoder.drawIndexed(indices.len, 1, 0, 0, 0);
-        renderPassEncoder.end();
-        renderPassEncoder.deinit();
-
-        const command_buffer = commandEncoder.finish(
-            &wg.WGPUCommandBufferDescriptor{
-                .label = u.stringView("command_buffer"),
-            },
-        );
-
-        queue.submit(
-            1,
-            &[_]wg.WGPUCommandBuffer{
-                command_buffer.commandBuffer,
-            },
-        );
-        surface.present();
-
-        command_buffer.deinit();
-        commandEncoder.deinit();
-        frame.deinit();
-        surfaceTexture.deinit();
-    }
-
-    image.deinit();
+    //    image.deinit();
 
     return .{
         .instance = instance,
         .surface = surface,
-        .adapter = null,
-        .device = null,
-        .config = null,
+        .adapter = adapter,
+        .device = device,
+        .config = config,
+        .queue = queue,
+        .image = image,
+        .texture = txtr,
+        .render_pipeline = render_pipeline,
+        .img_bind_group = img_bind_group,
+        .vertex_buffer = vertex_buffer,
+        .index_buffer = index_buffer,
+        .window = window,
     };
 }
 
-pub fn deinit(self: *@This()) void {
-    _ = self;
+pub fn start(self: *const @This()) !void {
+    if (!builtin.target.isWasm()) {
+        while (glfw.glfwWindowShouldClose(self.window) == glfw.GLFW_FALSE) {
+            try self.mainLoop();
+        }
+    } else {
+        cincludes.emscripten.emscripten_set_main_loop_arg(animation_frame_cb, @constCast(self), 0, true);
+    }
+}
+
+pub fn mainLoop(self: *const @This()) !void {
+    glfw.glfwPollEvents();
+
+    const try_texture = try self.surface.getSurfaceTexture();
+    const surface_texture = switch (try_texture) {
+        .Success => |texture| texture,
+        .Timeout, .Outdated, .Lost => {
+            var width: c_int = 0;
+            var height: c_int = 0;
+            glfw.glfwGetWindowSize(self.window, &width, &height);
+            if (width != 0 and height != 0) {
+                self.config.width = @intCast(width);
+                self.config.height = @intCast(height);
+                self.surface.configure(self.config);
+            }
+            return;
+        },
+        .OutOfMemory, .DeviceLost, .Force32 => {
+            std.log.err("[GraphicsPlatform] get_current_texture status={?}", .{try_texture});
+            std.process.exit(1);
+        },
+    };
+
+    self.queue.writeImageToTexture(&self.image, &self.texture);
+    // queue.copyExternalImageToTexture(&image, &surfaceTexture.texture);
+
+    const frame = surface_texture.texture.createView(null);
+    // const frame = txtr.createView(null);
+    const command_encoder = self.device.createCommandEncoder(
+        &wg.WGPUCommandEncoderDescriptor{
+            .label = u.stringView("command_encoder"),
+        },
+    );
+
+    const time = @mod(cincludes.glfw.glfwGetTime(), 1.0);
+
+    const render_pass_encoder = command_encoder.beginRenderPass(
+        &wg.WGPURenderPassDescriptor{
+            .label = u.stringView("render_pass_encoder"),
+            .colorAttachmentCount = 1,
+            .colorAttachments = &[_]wg.WGPURenderPassColorAttachment{
+                wg.WGPURenderPassColorAttachment{
+                    .view = frame.native,
+                    .loadOp = wg.WGPULoadOp_Clear,
+                    .storeOp = wg.WGPUStoreOp_Store,
+                    .depthSlice = wg.WGPU_DEPTH_SLICE_UNDEFINED,
+                    .clearValue = u.colourR(time, 0.5, 0.5, 1.0),
+                },
+            },
+        },
+    );
+
+    render_pass_encoder.setPipeline(&self.render_pipeline);
+    render_pass_encoder.setBindGroup(0, &self.img_bind_group, &.{});
+    render_pass_encoder.setVertexBuffer(0, self.vertex_buffer, 0, @sizeOf(Vertex) * vertices.len);
+    render_pass_encoder.setIndexBuffer(self.index_buffer, wg.WGPUIndexFormat_Uint16, 0, @sizeOf(u16) * indices.len);
+    // renderPassEncoder.draw(3, 1, 0, 0);
+    render_pass_encoder.drawIndexed(indices.len, 1, 0, 0, 0);
+    render_pass_encoder.end();
+    render_pass_encoder.deinit();
+
+    const command_buffer = command_encoder.finish(
+        &wg.WGPUCommandBufferDescriptor{
+            .label = u.stringView("command_buffer"),
+        },
+    );
+
+    self.queue.submit(
+        1,
+        &[_]wg.WGPUCommandBuffer{
+            command_buffer.native,
+        },
+    );
+    if (!builtin.target.isWasm()) {
+        self.surface.present();
+    }
+
+    command_buffer.deinit();
+    command_encoder.deinit();
+    frame.deinit();
+    surface_texture.deinit();
+}
+
+pub fn deinit(self: *const @This()) void {
+    log.debug(@src(), "Cleaning up", .{});
+    self.texture.deinit();
+    self.vertex_buffer.deinit();
+    self.index_buffer.deinit();
 }

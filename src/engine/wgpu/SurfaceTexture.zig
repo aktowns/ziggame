@@ -5,13 +5,13 @@ const cincludes = @import("../cincludes.zig");
 const wg = cincludes.wg;
 const Texture = @import("Texture.zig");
 
-surfaceTexture: wg.WGPUSurfaceTexture,
+native: wg.WGPUSurfaceTexture,
 texture: Texture,
 
-pub fn init(surfaceTexture: wg.WGPUSurfaceTexture) @This() {
+pub fn init(surface_texture: wg.WGPUSurfaceTexture) @This() {
     return .{
-        .surfaceTexture = surfaceTexture,
-        .texture = Texture.init(surfaceTexture.texture.?),
+        .native = surface_texture,
+        .texture = Texture.init(surface_texture.texture.?),
     };
 }
 

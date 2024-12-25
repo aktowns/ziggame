@@ -4,6 +4,7 @@ const builtin = @import("builtin");
 pub const wg = @cImport({
     @cInclude("webgpu/webgpu.h");
 });
+
 pub const glfw = @cImport({
     @cInclude("GLFW/glfw3.h");
     if (!builtin.target.isWasm()) {
@@ -15,6 +16,20 @@ pub const glfw = @cImport({
     } else {
         @cInclude("contrib.glfw3/GLFW/emscripten_glfw3.h");
     }
+});
+
+pub const emscripten = @cImport({
+    @cInclude("emscripten.h");
+    @cInclude("emscripten/html5.h");
+    @cInclude("emscripten/em_js.h");
+});
+
+pub const stbImage = @cImport({
+    @cInclude("stb_image.h");
+});
+
+pub const openal = @cImport({
+    @cInclude("AL/al.h");
 });
 
 fn glfwDefine() []const u8 {
