@@ -1,3 +1,5 @@
+.idea
+sysroot
 ### Zig template
 .zig-cache/
 zig-out/
