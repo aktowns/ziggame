@@ -106,6 +106,9 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
 
     const instance = try Instance.init(&options.platform);
 
+    const ctx = cincludes.imgui.igCreateContext(null).?;
+    cincludes.imgui.igStyleColorsDark(null);
+
     log.debug(@src(), "Initializing GLFW", .{});
     if (glfw.glfwInit() != 1) {
         std.log.err("failed to initialize glfw: {?s}", .{"?"});

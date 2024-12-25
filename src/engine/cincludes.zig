@@ -11,7 +11,7 @@ pub const glfw = @cImport({
         @cDefine(glfwDefine(), "1");
         @cInclude("GLFW/glfw3native.h");
         if (builtin.os.tag == .macos) {
-            @cInclude("osxextra.h");
+            @cInclude("clib/macos_surface.h");
         }
     } else {
         @cInclude("contrib.glfw3/GLFW/emscripten_glfw3.h");
@@ -19,17 +19,26 @@ pub const glfw = @cImport({
 });
 
 pub const emscripten = @cImport({
-    @cInclude("emscripten.h");
-    @cInclude("emscripten/html5.h");
-    @cInclude("emscripten/em_js.h");
+    if (builtin.target.isWasm()) {
+        @cInclude("emscripten.h");
+        @cInclude("emscripten/html5.h");
+        @cInclude("emscripten/em_js.h");
+    }
 });
 
 pub const stbImage = @cImport({
-    @cInclude("stb_image.h");
+    @cInclude("stb/stb_image.h");
 });
 
 pub const openal = @cImport({
     @cInclude("AL/al.h");
+});
+
+pub const imgui = @cImport({
+    @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", "1");
+    @cInclude("cimgui.h");
+    @cInclude("imgui_impl_glfw.h");
+    @cInclude("imgui_impl_wgpu.h");
 });
 
 fn glfwDefine() []const u8 {

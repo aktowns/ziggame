@@ -1,0 +1,13 @@
+build:
+	@echo "Building in $(CURDIR)" 
+	cmake -S . -B out/Release -DDAWN_FETCH_DEPENDENCIES=ON -DDAWN_ENABLE_INSTALL=ON -DCMAKE_BUILD_TYPE=Release
+	cmake --build out/Release
+
+install:
+	@echo "Installing in $(CURDIR)" 
+	cmake --install out/Release --prefix ../../sysroot/
+
+update:
+	git pull
+
+.PHONY: build install update

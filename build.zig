@@ -35,13 +35,18 @@ pub fn build(b: *Build) !void {
 }
 
 fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) void {
-    // DAWN
-    c.addIncludePath(b.path("ext/dawn/include/"));
-    c.addIncludePath(b.path("ext/dawn/include/webgpu/"));
-    c.addLibraryPath(b.path("ext/dawn/lib/"));
-    c.linkSystemLibrary("webgpu_dawn", .{});
-    // GLFW
-    c.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
+    c.addIncludePath(b.path("sysroot/include"));
+    c.addLibraryPath(b.path("sysroot/lib"));
+
+    if (!target.result.isWasm()) {
+        c.linkSystemLibrary("clib", .{});
+        c.linkSystemLibrary("webgpu_dawn", .{});
+        c.linkSystemLibrary("openal", .{});
+        c.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
+        const imgui_path = std.fs.cwd().realpathAlloc(b.allocator, "sysroot/lib/cimgui.a") catch unreachable;
+        c.linkSystemLibrary(imgui_path, .{ .preferred_link_mode = .static, .use_pkg_config = .no });
+        c.linkSystemLibrary("imgui_backend", .{});
+    } else {}
 
     switch (target.result.os.tag) {
         .linux => {
@@ -51,17 +56,16 @@ fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) vo
             c.linkFramework("CoreFoundation", .{});
             c.linkFramework("Metal", .{});
             c.linkFramework("QuartzCore", .{});
-
-            c.addIncludePath(b.path("ext/osxextra/"));
-            c.addLibraryPath(b.path("ext/osxextra/"));
-            c.linkSystemLibrary("osxextra", .{ .preferred_link_mode = .static });
         },
+        .emscripten => {},
         else => std.debug.panic("Unhandled target {?}", .{target.result.os}),
     }
 }
 
 fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, other_deps: []const struct { []const u8, *Build.Dependency }) anyerror!void {
-    const engine_lib = b.addModule("gpu", .{ .root_source_file = b.path("src/engine/engine.zig"), .target = target, .optimize = optimize });
+    const resources_lib = b.addModule("resources", .{ .root_source_file = b.path("resources/manifest.zig"), .target = target, .optimize = optimize });
+    const engine_lib = b.addModule("engine", .{ .root_source_file = b.path("src/engine/engine.zig"), .target = target, .optimize = optimize });
+    engine_lib.addImport("resources", resources_lib);
 
     for (other_deps) |dep| {
         engine_lib.addImport(dep[0], dep[1].module(dep[0]));
@@ -101,6 +105,9 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
         exe.root_module.addImport("engine", engine_lib);
         exe_check.root_module.addImport("engine", engine_lib);
 
+        exe.root_module.addImport("resources", resources_lib);
+        exe_check.root_module.addImport("resources", resources_lib);
+
         b.installArtifact(exe);
 
         const run_cmd = b.addRunArtifact(exe);
@@ -123,6 +130,7 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
 
         const exe_lib = try emcc.compileForEmscripten(b, "test", "src/main.zig", target, optimize);
         exe_lib.root_module.addImport("engine", engine_lib);
+        exe_lib.root_module.addImport("resources", resources_lib);
         exe_lib.linkLibC();
         exe_lib.addIncludePath(.{ .cwd_relative = emscripten_headers });
 

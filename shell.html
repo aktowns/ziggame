@@ -51,12 +51,14 @@
                 text = Array.prototype.slice.call(arguments).join(' ');
                 console.log(text);
                 outputTextArea.textContent = outputTextArea.textContent + text;
+                outputTextArea.scrollTop = outputTextArea.scrollHeight;
             };
         })(),
         printErr: function(text) {
             text = Array.prototype.slice.call(arguments).join(' ');
             console.error(text);
             outputTextArea.textContent = outputTextArea.textContent + "\n[stderr] " + text;
+            outputTextArea.scrollTop = outputTextArea.scrollHeight;
         },
       };
       window.onerror = function() {

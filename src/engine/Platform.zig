@@ -39,7 +39,6 @@ fn platformName() Error![]const u8 {
 }
 
 pub fn getCurrentPlatform(allocator: std.mem.Allocator) Error!Platform {
-    const audio = Audio.xx();
     const fs = Filesystem.init(allocator) catch |err| {
         std.log.err("[Platform] Filesystem initialization failed: {?}", .{err});
         return Error.FailedToInitializeFilesystem;

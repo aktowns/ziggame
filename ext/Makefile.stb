@@ -1,0 +1,13 @@
+build:
+	@echo "Building in $(CURDIR)" 
+
+install:
+	@echo "Installing in $(CURDIR)" 
+	mkdir -p ../../sysroot/include/stb/
+	cp -v *.h ../../sysroot/include/stb/
+
+update:
+	git pull
+
+.PHONY: build install update
+

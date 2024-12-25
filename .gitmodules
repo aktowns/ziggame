@@ -1,0 +1,18 @@
+[submodule "ext/openal-soft"]
+	path = ext/openal-soft
+	url = https://github.com/kcat/openal-soft
+[submodule "ext/stb"]
+	path = ext/stb
+	url = https://github.com/nothings/stb
+[submodule "ext/dawn"]
+	path = ext/dawn
+	url = https://dawn.googlesource.com/dawn
+[submodule "ext/imgui"]
+	path = ext/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "ext/cimgui"]
+	path = ext/cimgui
+	url = https://github.com/cimgui/cimgui.git
+[submodule "ext/glfw"]
+	path = ext/glfw
+	url = https://github.com/glfw/glfw.git
