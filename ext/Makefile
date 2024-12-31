@@ -10,6 +10,10 @@ imgui:
 	$(MAKE) -f ../Makefile.imgui -C cimgui build
 	$(MAKE) -f ../Makefile.imgui -C cimgui install
 
+nuklear:
+	$(MAKE) -f ../Makefile.nuklear -C Nuklear build
+	$(MAKE) -f ../Makefile.nuklear -C Nuklear install
+
 stb:
 	$(MAKE) -f ../Makefile.stb -C stb build
 	$(MAKE) -f ../Makefile.stb -C stb install

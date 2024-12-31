@@ -151,7 +151,7 @@ pub fn main() anyerror!void {
     var platform = try engine.Platform.getCurrentPlatform(allocator);
     defer platform.deinit();
     std.log.info("[Main] Using platform: {s}", .{platform.name});
-    const gfx = try engine.GraphicsPlatform.init(.{ .window_height = 480, .window_width = 640, .window_title = "ZenEng", .platform = platform });
+    var gfx = try engine.GraphicsPlatform.init(.{ .window_height = 480, .window_width = 640, .window_title = "ZenEng", .platform = &platform });
     defer gfx.deinit();
     try gfx.start();
 

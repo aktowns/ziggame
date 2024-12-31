@@ -4,7 +4,7 @@ const std = @import("std");
 const Platform = @import("../Platform.zig");
 const ResourceType = @import("../filesystem/Filesystem.zig").ResourceType;
 const cinclude = @import("../cincludes.zig");
-const log = @import("../log.zig");
+const log = @import("wingman").log;
 
 image: ImageInternal,
 

@@ -63,7 +63,7 @@ pub fn main() anyerror!void {
     const resources_path = try fs.path.join(allocator, &[_][]const u8{ path, "resources" });
     defer allocator.free(resources_path);
 
-    const dir = try fs.openDirAbsolute(resources_path, .{ .access_sub_paths = false });
+    const dir = try fs.openDirAbsolute(resources_path, .{ .access_sub_paths = false, .iterate = true });
 
     var walker = try dir.walk(allocator);
     defer walker.deinit();

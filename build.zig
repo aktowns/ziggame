@@ -43,8 +43,6 @@ fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) vo
         c.linkSystemLibrary("webgpu_dawn", .{});
         c.linkSystemLibrary("openal", .{});
         c.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
-        c.linkSystemLibrary("cimgui", .{ .preferred_link_mode = .static });
-        c.linkSystemLibrary("imgui_backend", .{});
     } else {}
 
     switch (target.result.os.tag) {
@@ -57,14 +55,57 @@ fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) vo
             c.linkFramework("QuartzCore", .{});
         },
         .emscripten => {},
+        .wasi => {},
         else => std.debug.panic("Unhandled target {?}", .{target.result.os}),
     }
+}
+
+fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode) !*Build.Module {
+    const wingman_mod = b.addModule("wingman", .{ .root_source_file = b.path("src/wingman/wingman.zig"), .target = target, .optimize = optimize });
+
+    const wingman = b.addStaticLibrary(.{ .name = "wingman", .root_module = wingman_mod });
+    wingman.linkLibC();
+
+    wingman.linkSystemLibrary("wayland-client");
+
+    wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-shell-protocol.c") });
+    wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-decoration-unstable-v1.c") });
+
+    wingman.addIncludePath(b.path("src/wingman/window/c"));
+
+    const wingman_demo_mod = b.createModule(.{
+        .root_source_file = b.path("src/wingman/demo.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    wingman_demo_mod.addImport("wingman", wingman_mod);
+
+    const wingman_demo = b.addExecutable(.{
+        .name = "wingman-demo",
+        .root_module = wingman_demo_mod,
+    });
+    wingman_demo.linkLibC();
+    wingman_demo.addIncludePath(b.path("src/wingman/c"));
+
+    b.installArtifact(wingman_demo);
+
+    const run_cmd = b.addRunArtifact(wingman_demo);
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    const run_step = b.step("run_wingman_demo", "Run the demo");
+    run_step.dependOn(&run_cmd.step);
+
+    return wingman_mod;
 }
 
 fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, other_deps: []const struct { []const u8, *Build.Dependency }) anyerror!void {
     const resources_lib = b.addModule("resources", .{ .root_source_file = b.path("resources/manifest.zig"), .target = target, .optimize = optimize });
     const engine_lib = b.addModule("engine", .{ .root_source_file = b.path("src/engine/engine.zig"), .target = target, .optimize = optimize });
     engine_lib.addImport("resources", resources_lib);
+
+    const wingman_mod = try buildWingman(b, target, optimize);
+    engine_lib.addImport("wingman", wingman_mod);
 
     for (other_deps) |dep| {
         engine_lib.addImport(dep[0], dep[1].module(dep[0]));
@@ -103,6 +144,9 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
 
         exe.root_module.addImport("engine", engine_lib);
         exe_check.root_module.addImport("engine", engine_lib);
+
+        exe.root_module.addImport("wingman", wingman_mod);
+        exe_check.root_module.addImport("wingman", wingman_mod);
 
         exe.root_module.addImport("resources", resources_lib);
         exe_check.root_module.addImport("resources", resources_lib);
@@ -144,5 +188,32 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
 
         const run_option = b.step("run", "idk man");
         run_option.dependOn(&run_step.step);
+    } else if (target.result.os.tag == .wasi) {
+        const exe = b.addExecutable(.{
+            .name = "zen",
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+
+        exe.linkLibC();
+
+        for (other_deps) |dep| {
+            exe.root_module.addImport(dep[0], dep[1].module(dep[0]));
+        }
+
+        exe.root_module.addImport("engine", engine_lib);
+        exe.root_module.addImport("resources", resources_lib);
+        b.installArtifact(exe);
+
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(b.getInstallStep());
+
+        if (b.args) |args| {
+            run_cmd.addArgs(args);
+        }
+
+        const run_step = b.step("run", "Run the app");
+        run_step.dependOn(&run_cmd.step);
     }
 }

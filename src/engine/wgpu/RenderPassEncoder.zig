@@ -6,6 +6,8 @@ const wg = cincludes.wg;
 const RenderPipeline = @import("RenderPipeline.zig");
 const Buffer = @import("Buffer.zig");
 const BindGroup = @import("BindGroup.zig");
+const enums = @import("enums.zig");
+const IndexFormat = enums.IndexFormat;
 
 native: *wg.WGPURenderPassEncoderImpl,
 
@@ -25,12 +27,16 @@ pub fn setVertexBuffer(self: *const @This(), slot: u32, buffer: Buffer, offset: 
     wg.wgpuRenderPassEncoderSetVertexBuffer(self.native, slot, buffer.native, offset, size);
 }
 
-pub fn setIndexBuffer(self: *const @This(), buffer: Buffer, format: wg.WGPUIndexFormat, offset: u64, size: u64) void {
-    wg.wgpuRenderPassEncoderSetIndexBuffer(self.native, buffer.native, format, offset, size);
+pub fn setIndexBuffer(self: *const @This(), buffer: Buffer, format: IndexFormat, offset: u64, size: u64) void {
+    wg.wgpuRenderPassEncoderSetIndexBuffer(self.native, buffer.native, @intFromEnum(format), offset, size);
 }
 
 pub fn setBindGroup(self: *const @This(), index: u32, bind_group: *const BindGroup, dynamic_offsets: []const u32) void {
     wg.wgpuRenderPassEncoderSetBindGroup(self.native, index, bind_group.native, dynamic_offsets.len, dynamic_offsets.ptr);
+}
+
+pub fn setScissorRect(self: *const @This(), x: u32, y: u32, width: u32, height: u32) void {
+    wg.wgpuRenderPassEncoderSetScissorRect(self.native, x, y, width, height);
 }
 
 pub fn draw(self: *const @This(), vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {

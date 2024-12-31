@@ -7,11 +7,14 @@ const glfw = cincludes.glfw;
 const wg = cincludes.wg;
 const Filesystem = @import("filesystem/Filesystem.zig");
 const Audio = @import("media/Audio.zig");
+const wingman = @import("wingman");
 
 name: []const u8,
 comptime os: std.Target.Os = builtin.os,
 allocator: std.mem.Allocator,
 filesystem: Filesystem,
+window: wingman.Window,
+input: ?wingman.Input,
 
 pub const tracing: bool = true;
 
@@ -31,6 +34,7 @@ fn platformName() Error![]const u8 {
         .linux => "Linux",
         .macos => "MacOS",
         .emscripten => "Web",
+        .wasi => "Web",
         else => {
             std.log.err("Platform not supported: {?}", builtin.target.os.tag);
             Error.PlatformNotFound;
@@ -43,10 +47,18 @@ pub fn getCurrentPlatform(allocator: std.mem.Allocator) Error!Platform {
         std.log.err("[Platform] Filesystem initialization failed: {?}", .{err});
         return Error.FailedToInitializeFilesystem;
     };
+    const window = wingman.Window.init(allocator, .{ .title = "testing", .width = 640, .height = 480 });
+    const input = sw: switch (builtin.target.os.tag) {
+        .linux => break :sw wingman.Input.initWayland(allocator, &window.underlying.input),
+        else => break :sw null,
+    };
+
     return .{
         .name = try platformName(),
         .allocator = allocator,
         .filesystem = fs,
+        .window = window,
+        .input = input,
     };
 }
 
@@ -63,14 +75,18 @@ pub const NativeSurface: type = switch (builtin.target.os.tag) {
 };
 
 pub fn getSurfaceSource(self: *const @This(), window: *glfw.GLFWwindow) NativeSurface {
-    return switch (self.os.tag) {
-        .macos => getMacOSSurface(window),
-        .linux => getLinuxSurface(window),
-        .windows => getWindowsSurface(window),
-        .emscripten => getEmscriptenSurface(window),
-
-        else => unreachable,
+    _ = window;
+    return switch (self.window.surface) {
+        .linux_wayland => |surface| getLinuxSurface(&surface),
     };
+    // return switch (self.os.tag) {
+    //     //.macos => getMacOSSurface(window),
+    //     .linux => self.getLinuxSurface(window),
+    //     //.windows => getWindowsSurface(window),
+    //     //.emscripten => getEmscriptenSurface(window),
+
+    //     else => unreachable,
+    // };
 }
 
 fn getMacOSSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptorFromMetalLayer {
@@ -83,9 +99,9 @@ fn getMacOSSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptorFromMetalLa
     };
 }
 
-fn getLinuxSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptorFromWaylandSurface {
-    const wl_display = glfw.glfwGetWaylandDisplay();
-    const wl_surface = glfw.glfwGetWaylandWindow(window);
+fn getLinuxSurface(surface: *const wingman.Window.LinuxSurface) wg.WGPUSurfaceDescriptorFromWaylandSurface {
+    const wl_display = surface.wl_display;
+    const wl_surface = surface.wl_surface;
 
     return wg.WGPUSurfaceDescriptorFromWaylandSurface{
         .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceWaylandSurface },

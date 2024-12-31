@@ -2,8 +2,8 @@ build:
 	@echo "Building in $(CURDIR)" 
 	cmake -S . -B out/Release -DIMGUI_STATIC=ON
 	cmake --build out/Release
-	gcc -c -I./imgui -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS=1 -DIMGUI_IMPL_API="extern \"C\" " -DIMGUI_IMPL_WEBGPU_BACKEND_DAWN=1 -std=gnu++11 -I../../sysroot/include ./imgui/backends/imgui_impl_glfw.cpp -o imgui_impl_glfw.o
-	gcc -c -I./imgui -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS=1 -DIMGUI_IMPL_API="extern \"C\" " -DIMGUI_IMPL_WEBGPU_BACKEND_DAWN=1 -std=gnu++11 -I../../sysroot/include ./imgui/backends/imgui_impl_wgpu.cpp -o imgui_impl_wgpu.o
+	gcc -c -I./imgui -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS=1 -DIMGUI_IMPL_API="extern \"C\" " -DIMGUI_IMPL_WEBGPU_BACKEND_DAWN=1 -std=gnu++11 -fno-threadsafe-statics -I../../sysroot/include ./imgui/backends/imgui_impl_glfw.cpp -o imgui_impl_glfw.o
+	gcc -c -I./imgui -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS=1 -DIMGUI_IMPL_API="extern \"C\" " -DIMGUI_IMPL_WEBGPU_BACKEND_DAWN=1 -std=gnu++11 -fno-threadsafe-statics -I../../sysroot/include ./imgui/backends/imgui_impl_wgpu.cpp -o imgui_impl_wgpu.o
 	ar rcs libimgui_backend.a imgui_impl_glfw.o imgui_impl_wgpu.o
 	rm -v imgui_impl_glfw.o imgui_impl_wgpu.o
 
@@ -13,9 +13,10 @@ install:
 	mkdir -p ../../sysroot/include/imgui
 	cp -v cimgui.h ../../sysroot/include/imgui
 	mv libimgui_backend.a ../../sysroot/lib/
-	cp -v imgui/backends/imgui_impl_wgpu.h ../../sysroot/include/imgui/
-	cp -v imgui/backends/imgui_impl_glfw.h ../../sysroot/include/imgui/
-	ln -s cimgui.a ../../sysroot/lib/libcimgui.a
+	#cp -v imgui/backends/imgui_impl_wgpu.h ../../sysroot/include/imgui/
+	#cp -v imgui/backends/imgui_impl_glfw.h ../../sysroot/include/imgui/
+	cp -v ../imgui_backend.h ../../sysroot/include/imgui/
+	ln -sf cimgui.a ../../sysroot/lib/libcimgui.a
 
 update:
 	git pull

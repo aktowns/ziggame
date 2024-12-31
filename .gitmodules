@@ -16,3 +16,6 @@
 [submodule "ext/glfw"]
 	path = ext/glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "ext/Nuklear"]
+	path = ext/Nuklear
+	url = https://github.com/Immediate-Mode-UI/Nuklear.git

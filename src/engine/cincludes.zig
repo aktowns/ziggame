@@ -36,9 +36,18 @@ pub const openal = @cImport({
 
 pub const imgui = @cImport({
     @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", "1");
-    @cInclude("cimgui.h");
-    @cInclude("imgui_impl_glfw.h");
-    @cInclude("imgui_impl_wgpu.h");
+    @cInclude("imgui/cimgui.h");
+    @cInclude("imgui/imgui_backend.h");
+});
+
+pub const nuklear = @cImport({
+    @cDefine("NK_INCLUDE_DEFAULT_ALLOCATOR", "1");
+    @cDefine("NK_INCLUDE_FIXED_TYPES", "1");
+    @cDefine("NK_INCLUDE_STANDARD_BOOL", "1");
+    @cDefine("NK_INCLUDE_FONT_BAKING", "1");
+    @cDefine("NK_INCLUDE_DEFAULT_FONT", "1");
+    @cDefine("NK_INCLUDE_VERTEX_BUFFER_OUTPUT", "1");
+    @cInclude("nuklear.h");
 });
 
 fn glfwDefine() []const u8 {

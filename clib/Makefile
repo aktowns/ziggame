@@ -1,6 +1,6 @@
 UNAME_S := $(shell uname -s)
-CFLAGS = -Wall -Wextra -Werror -I../ext/stb/
-SRCS = src/stb_image.c
+CFLAGS = -Wall -Wextra -I../ext/stb/ -I../ext/Nuklear/
+SRCS = src/stb_image.c src/nuklear.c
 NAME = ../sysroot/lib/libclib.a
 
 ifeq ($(UNAME_S),Linux)

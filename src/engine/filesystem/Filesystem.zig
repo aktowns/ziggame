@@ -3,7 +3,7 @@ const Filesystem = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 const manifest = @import("resources");
-const log = @import("../log.zig");
+const log = @import("wingman").log;
 
 pub const ResourceType = manifest.ResourceType;
 const InternalFilesystemNodes = std.StringHashMap(u32);
