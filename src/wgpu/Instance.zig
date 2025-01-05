@@ -2,30 +2,33 @@ const Instance = @This();
 
 const std = @import("std");
 const builtin = @import("builtin");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 const Adapter = @import("Adapter.zig");
 const Surface = @import("Surface.zig");
 const Error = @import("error.zig").Error;
-const Platform = @import("../Platform.zig");
-const u = @import("../util.zig");
 const log = @import("wingman").log;
 const enums = @import("enums.zig");
 const WaitStatus = enums.WaitStatus;
 const RequestAdapterStatus = enums.RequestAdapterStatus;
 const CallbackMode = enums.CallbackMode;
+const string_view = @import("string_view.zig");
+const StringView = string_view.StringView;
 
 native: *wg.WGPUInstanceImpl,
 adapter: ?Adapter = null,
-platform: *const Platform,
-sentinel: ?*u8 = null,
 
-pub fn init(platform: *const Platform, descriptor: [*c]const wg.WGPUInstanceDescriptor) Error!@This() {
+pub const NativeSurfaceDescriptor: type = switch (builtin.target.os.tag) {
+    .windows => wg.WGPUSurfaceDescriptorFromWindowsHWND,
+    .linux => wg.WGPUSurfaceDescriptorFromWaylandSurface,
+    .macos => wg.WGPUSurfaceDescriptorFromMetalLayer,
+    .emscripten => wg.WGPUSurfaceDescriptorFromCanvasHTMLSelector,
+    else => @compileError("Unsupported Platform"),
+};
+
+pub fn init(descriptor: [*c]const wg.WGPUInstanceDescriptor) Error!@This() {
     const instance = wg.wgpuCreateInstance(descriptor) orelse return Error.FailedToCreateInstance;
     return .{
         .native = instance,
-        .platform = platform,
-        .sentinel = platform.sentinel(),
     };
 }
 
@@ -35,16 +38,16 @@ pub fn createSurface(self: *const @This(), descriptor: [*c]const wg.WGPUSurfaceD
     return Surface.init(surface.?, self);
 }
 
-pub fn createSurfaceFromNative(self: *const @This(), source: Platform.NativeSurface) Error!Surface {
+pub fn createSurfaceFromNative(self: *const @This(), source: NativeSurfaceDescriptor) Error!Surface {
     const surface_descriptor = wg.WGPUSurfaceDescriptor{
         .nextInChain = @ptrCast(&source),
-        .label = u.stringView("Surface"),
+        .label = StringView.init("Surface"),
     };
 
     return self.createSurface(&surface_descriptor);
 }
 
-export fn handle_request_adapter(status: wg.WGPURequestDeviceStatus, adapter: wg.WGPUAdapter, message: u.StringView, userData: ?*anyopaque) void {
+export fn handle_request_adapter(status: wg.WGPURequestDeviceStatus, adapter: wg.WGPUAdapter, message: StringView, userData: ?*anyopaque) void {
     log.debug(@src(), "request_adapter status={d}", .{status});
 
     const mstatus = std.meta.intToEnum(RequestAdapterStatus, status) catch |err| ret: {
@@ -55,9 +58,9 @@ export fn handle_request_adapter(status: wg.WGPURequestDeviceStatus, adapter: wg
     switch (mstatus) {
         .success => {
             const inst = @as(?*Instance, @alignCast(@ptrCast(userData))).?;
-            inst.adapter = Adapter.init(inst.platform, inst, adapter.?);
+            inst.adapter = Adapter.init(inst, adapter.?);
         },
-        else => log.err(@src(), "request_adapter status={d} message={?s}", .{ status, u.stringViewData(message) }),
+        else => log.err(@src(), "request_adapter status={d} message={?s}", .{ status, string_view.data(message) }),
     }
 }
 

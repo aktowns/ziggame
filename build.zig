@@ -60,18 +60,33 @@ fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) vo
     }
 }
 
+fn buildWgpu(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, wingman: *Build.Module) !*Build.Module {
+    const wgpu_mod = b.addModule("wgpu", .{ .root_source_file = b.path("src/wgpu/wgpu.zig"), .target = target, .optimize = optimize });
+    wgpu_mod.addImport("wingman", wingman);
+
+    const wgpu = b.addStaticLibrary(.{ .name = "wgpu", .root_module = wgpu_mod });
+    wgpu.linkLibC();
+    wgpu.addIncludePath(b.path("sysroot/include"));
+    wgpu.addLibraryPath(b.path("sysroot/lib"));
+    wgpu.linkSystemLibrary("webgpu_dawn");
+
+    return wgpu_mod;
+}
+
 fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode) !*Build.Module {
     const wingman_mod = b.addModule("wingman", .{ .root_source_file = b.path("src/wingman/wingman.zig"), .target = target, .optimize = optimize });
 
     const wingman = b.addStaticLibrary(.{ .name = "wingman", .root_module = wingman_mod });
     wingman.linkLibC();
 
-    wingman.linkSystemLibrary("wayland-client");
+    if (builtin.target.os.tag == .linux) {
+        wingman.linkSystemLibrary("wayland-client");
 
-    wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-shell-protocol.c") });
-    wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-decoration-unstable-v1.c") });
+        wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-shell-protocol.c") });
+        wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-decoration-unstable-v1.c") });
 
-    wingman.addIncludePath(b.path("src/wingman/window/c"));
+        wingman.addIncludePath(b.path("src/wingman/window/c"));
+    }
 
     const wingman_demo_mod = b.createModule(.{
         .root_source_file = b.path("src/wingman/demo.zig"),
@@ -86,7 +101,7 @@ fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode)
         .root_module = wingman_demo_mod,
     });
     wingman_demo.linkLibC();
-    wingman_demo.addIncludePath(b.path("src/wingman/c"));
+    // wingman_demo.addIncludePath(b.path("src/wingman/c"));
 
     b.installArtifact(wingman_demo);
 
@@ -106,6 +121,9 @@ fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, 
 
     const wingman_mod = try buildWingman(b, target, optimize);
     engine_lib.addImport("wingman", wingman_mod);
+
+    const wgpu_mod = try buildWgpu(b, target, optimize, wingman_mod);
+    engine_lib.addImport("wgpu", wgpu_mod);
 
     for (other_deps) |dep| {
         engine_lib.addImport(dep[0], dep[1].module(dep[0]));

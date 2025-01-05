@@ -9,7 +9,7 @@ const u = @import("util.zig");
 const Platform = @import("Platform.zig");
 const Filesystem = @import("filesystem/Filesystem.zig");
 
-const w = @import("wgpu/wgpu.zig");
+const w = @import("wgpu");
 const Instance = w.Instance;
 const Surface = w.Surface;
 const Device = w.Device;
@@ -21,7 +21,7 @@ const Buffer = w.Buffer;
 const RenderPipeline = w.RenderPipeline;
 const RenderPassEncoder = w.RenderPassEncoder;
 const ShaderModule = w.ShaderModule;
-const wge = @import("wgpu/enums.zig");
+const wge = @import("wgpu").enums;
 const Image = @import("media/Image.zig");
 const log = @import("wingman").log;
 const nuklear = cincludes.nuklear;

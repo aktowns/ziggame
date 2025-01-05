@@ -29,4 +29,4 @@ update:
 	$(MAKE) -f ../Makefile.stb -C stb update
 	$(MAKE) -f ../Makefile.glfw -C glfw update
 
-.PHONY: dawn imgui openal stb glfw
+.PHONY: dawn imgui openal stb glfw nuklear

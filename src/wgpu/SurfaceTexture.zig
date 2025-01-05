@@ -1,8 +1,7 @@
 const SurfaceTexture = @This();
 
 const std = @import("std");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 const Texture = @import("Texture.zig");
 
 native: wg.WGPUSurfaceTexture,

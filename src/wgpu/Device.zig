@@ -2,10 +2,7 @@ const Device = @This();
 
 const std = @import("std");
 const builtin = @import("builtin");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
-const wge = @import("enums.zig");
-const u = @import("../util.zig");
+const wg = @import("cincludes.zig").wg;
 const Queue = @import("Queue.zig");
 const PipelineLayout = @import("PipelineLayout.zig");
 const RenderPipeline = @import("RenderPipeline.zig");
@@ -18,14 +15,13 @@ const Buffer = @import("Buffer.zig");
 const Sampler = @import("Sampler.zig");
 const BindGroupLayout = @import("BindGroupLayout.zig");
 const BindGroup = @import("BindGroup.zig");
-const Platform = @import("../Platform.zig");
+const string_view = @import("string_view.zig");
+const StringView = string_view.StringView;
 
 native: *wg.WGPUDeviceImpl,
-platform: *const Platform,
-sentinel: ?*u8 = null,
 
-pub fn init(platform: *const Platform, device: *wg.WGPUDeviceImpl) @This() {
-    return .{ .native = device, .platform = platform, .sentinel = platform.sentinel() };
+pub fn init(device: *wg.WGPUDeviceImpl) @This() {
+    return .{ .native = device };
 }
 
 pub fn getQueue(self: *const @This()) Queue {
@@ -48,13 +44,13 @@ pub fn createShaderModuleFromSource(self: *const @This(), contents: []u8) Shader
     const shader_source = if (builtin.target.isWasm()) wg.WGPUSType_ShaderModuleWGSLDescriptor else wg.WGPUSType_ShaderSourceWGSL;
 
     return self.createShaderModule(&wg.WGPUShaderModuleDescriptor{
-        .label = u.stringView("Shader"),
+        .label = string_view.init("Shader"),
         .nextInChain = @as(*wg.WGPUChainedStruct, @constCast(@ptrCast(
             &wg.WGPUShaderModuleWGSLDescriptor{
                 .chain = wg.WGPUChainedStruct{
                     .sType = shader_source,
                 },
-                .code = u.stringViewR(contents),
+                .code = string_view.initR(contents),
             },
         ))),
     });
@@ -72,7 +68,7 @@ pub fn createTexture(self: *const @This(), descriptor: [*c]const wg.WGPUTextureD
 
 pub fn createTextureFromImage(self: *const @This(), image: *const Image) Texture {
     return self.createTexture(&wg.WGPUTextureDescriptor{
-        .label = u.stringView("image"),
+        .label = string_view.init("image"),
         .format = wg.WGPUTextureFormat_RGBA8Unorm,
         .size = wg.WGPUExtent3D{
             .height = @intCast(image.image.height),
@@ -86,64 +82,10 @@ pub fn createTextureFromImage(self: *const @This(), image: *const Image) Texture
     });
 }
 
-pub const BufferDescriptor = struct {
-    // nextInChain: [*c]const WGPUChainedStruct = @import("std").mem.zeroes([*c]const WGPUChainedStruct),
-    // label: WGPUStringView = @import("std").mem.zeroes(WGPUStringView),
-    usage: wge.BufferUsage.BufferUsageImpl,
-    size: u64,
-    mapped_at_creation: bool,
-
-    fn native(self: *const @This()) wg.WGPUBufferDescriptor {
-        return .{
-            .usage = self.usage,
-            .size = self.size,
-            .mappedAtCreation = if (self.mapped_at_creation) 0 else 1,
-        };
-    }
-};
-
-pub fn createBufferT(self: *const @This(), descriptor: BufferDescriptor) Buffer {
-    return self.createBuffer(&descriptor.native());
-}
-
 pub fn createBuffer(self: *const @This(), descriptor: [*c]const wg.WGPUBufferDescriptor) Buffer {
     const bfr = wg.wgpuDeviceCreateBuffer(self.native, descriptor).?;
 
     return Buffer.init(bfr);
-}
-
-pub const CreateSamplerDescriptor = struct {
-    // nextInChain: [*c]const WGPUChainedStruct = @import("std").mem.zeroes([*c]const WGPUChainedStruct),
-    // label: WGPUStringView = @import("std").mem.zeroes(WGPUStringView),
-    address_mode_u: wge.AddressMode,
-    address_mode_v: wge.AddressMode,
-    address_mode_w: wge.AddressMode,
-    mag_filter: wge.FilterMode,
-    min_filter: wge.FilterMode,
-    mipmap_filter: wge.MipmapFilterMode,
-    lod_min_clamp: f32,
-    lod_max_clamp: f32,
-    compare: wge.CompareFunction,
-    max_anisotropy: u16,
-
-    fn native(self: *const @This()) wg.WGPUSamplerDescriptor {
-        return .{
-            .addressModeU = @intFromEnum(self.address_mode_u),
-            .addressModeV = @intFromEnum(self.address_mode_v),
-            .addressModeW = @intFromEnum(self.address_mode_w),
-            .magFilter = @intFromEnum(self.mag_filter),
-            .minFilter = @intFromEnum(self.min_filter),
-            .mipmapFilter = @intFromEnum(self.mipmap_filter),
-            .lodMinClamp = self.lod_min_clamp,
-            .lodMaxClamp = self.lod_max_clamp,
-            .compare = @intFromEnum(self.compare),
-            .maxAnisotropy = self.max_anisotropy,
-        };
-    }
-};
-
-pub fn createSamplerT(self: *const @This(), descriptor: CreateSamplerDescriptor) Sampler {
-    return self.createSampler(&descriptor.native());
 }
 
 pub fn createSampler(self: *const @This(), descriptor: [*c]const wg.WGPUSamplerDescriptor) Sampler {
@@ -162,8 +104,4 @@ pub fn createBindGroup(self: *const @This(), descriptor: [*c]const wg.WGPUBindGr
     const bg = wg.wgpuDeviceCreateBindGroup(self.native, descriptor).?;
 
     return BindGroup.init(bg);
-}
-
-pub fn tick(self: *const @This()) void {
-    wg.wgpuDeviceTick(self.native);
 }

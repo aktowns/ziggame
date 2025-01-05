@@ -2,38 +2,36 @@ const Adapter = @This();
 
 const std = @import("std");
 const builtin = @import("builtin");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 const Error = @import("error.zig").Error;
 const Device = @import("Device.zig");
 const Platform = @import("../Platform.zig");
 const Instance = @import("Instance.zig");
-const u = @import("../util.zig");
 const log = @import("wingman").log;
 const enums = @import("enums.zig");
 const CallbackMode = enums.CallbackMode;
+const string_view = @import("string_view.zig");
+const StringView = string_view.StringView;
 
 native: *wg.WGPUAdapterImpl,
 device: ?Device,
 instance: *Instance,
-platform: *const Platform,
 
-pub fn init(platform: *const Platform, instance: *Instance, adapter: *wg.WGPUAdapterImpl) @This() {
+pub fn init(instance: *Instance, adapter: *wg.WGPUAdapterImpl) @This() {
     return .{
         .native = adapter,
         .instance = instance,
         .device = null,
-        .platform = platform,
     };
 }
 
-export fn handle_request_device(status: wg.WGPURequestDeviceStatus, device: wg.WGPUDevice, message: u.StringView, userData: ?*anyopaque) void {
+export fn handle_request_device(status: wg.WGPURequestDeviceStatus, device: wg.WGPUDevice, message: StringView, userData: ?*anyopaque) void {
     log.debug(@src(), "Got device callback", .{});
     if (status == wg.WGPURequestDeviceStatus_Success) {
         const inst = @as(?*Adapter, @alignCast(@ptrCast(userData))).?;
-        inst.device = Device.init(inst.platform, device.?);
+        inst.device = Device.init(device.?);
     } else {
-        log.err(@src(), "request_device status={d} message={?s}", .{ status, u.stringViewData(message) });
+        log.err(@src(), "request_device status={d} message={?s}", .{ status, string_view.data(message) });
     }
 }
 

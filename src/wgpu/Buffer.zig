@@ -4,11 +4,11 @@ const std = @import("std");
 
 const Instance = @import("Instance.zig");
 
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 const wge = @import("enums.zig");
 const log = @import("wingman").log;
-const u = @import("../util.zig");
+const string_view = @import("string_view.zig");
+const StringView = string_view.StringView;
 
 native: *wg.WGPUBufferImpl,
 
@@ -20,11 +20,11 @@ pub fn deinit(self: *const @This()) void {
     wg.wgpuBufferRelease(self.native);
 }
 
-export fn setBufferMapAsync(status: wg.WGPUBufferMapAsyncStatus, error_desc: u.StringView, setee: ?*anyopaque, nothing: ?*anyopaque) void {
+export fn setBufferMapAsync(status: wg.WGPUBufferMapAsyncStatus, error_desc: StringView, setee: ?*anyopaque, nothing: ?*anyopaque) void {
     _ = nothing;
     const pretty_status: wge.BufferMapAsyncStatus = @enumFromInt(status);
 
-    log.debug(@src(), "({?}) {?s}", .{ pretty_status, u.stringViewData(error_desc) });
+    log.debug(@src(), "({?}) {?s}", .{ pretty_status, string_view.data(error_desc) });
 
     log.debug(@src(), "pointee {*}", .{setee});
     const s = @as(?*wge.BufferMapAsyncStatus, @alignCast(@ptrCast(setee)));

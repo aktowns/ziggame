@@ -2,8 +2,7 @@ const Surface = @This();
 
 const std = @import("std");
 const builtin = @import("builtin");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 const Instance = @import("Instance.zig");
 const SurfaceTexture = @import("SurfaceTexture.zig");
 const Error = @import("error.zig").Error;

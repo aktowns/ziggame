@@ -1,8 +1,7 @@
 const Queue = @This();
 
 const std = @import("std");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 
 const Image = @import("../media/Image.zig");
 const Texture = @import("Texture.zig");

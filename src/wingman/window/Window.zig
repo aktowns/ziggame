@@ -4,7 +4,11 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Signal = @import("../event/signal.zig").Signal;
 
-const linux_wayland = @import("linux_wayland.zig");
+const Underlying = switch (builtin.target.os.tag) {
+    .linux => @import("linux_wayland.zig"),
+    .macos => @import("macos.zig"),
+    else => undefined,
+};
 
 width: u32,
 height: u32,
@@ -15,21 +19,13 @@ on_size_changed: SizeChanged,
 pub const SizeChangedCtx = struct { width: u32, height: u32, window: *@This() };
 pub const SizeChanged = Signal(SizeChangedCtx);
 
-pub const SurfaceTag = enum { linux_wayland };
-
-pub const LinuxSurface = struct {
-    wl_surface: *linux_wayland.c.wl_surface,
-    wl_display: *linux_wayland.c.wl_display,
-};
-
-pub const Surface = union(SurfaceTag) {
-    linux_wayland: LinuxSurface,
-};
-
-pub const Underlying = switch (builtin.target.os.tag) {
-    .linux => linux_wayland,
-    .macos => undefined,
-    else => unreachable,
+pub const Surface = switch (builtin.target.os.tag) {
+    .linux => struct {
+        wl_surface: *Underlying.c.wl_surface,
+        wl_display: *Underlying.c.wl_display,
+    },
+    .macos => struct {},
+    else => undefined,
 };
 
 pub const window_options = struct {
@@ -39,9 +35,9 @@ pub const window_options = struct {
 };
 
 pub fn init(allocator: std.mem.Allocator, options: window_options) @This() {
-    switch (builtin.target.os.tag) {
+    return switch (comptime builtin.target.os.tag) {
         .linux => {
-            var lw = linux_wayland.init(options.title);
+            var lw = Underlying.init(options.title);
             lw.setup();
             return .{
                 .width = options.width,
@@ -56,8 +52,15 @@ pub fn init(allocator: std.mem.Allocator, options: window_options) @This() {
                 },
             };
         },
+        .macos => .{
+            .width = options.width,
+            .height = options.height,
+            .underlying = undefined,
+            .on_size_changed = SizeChanged.init(allocator),
+            .surface = Surface{},
+        },
         else => unreachable,
-    }
+    };
 }
 
 pub fn dispatch(self: *@This()) i32 {

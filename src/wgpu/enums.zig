@@ -1,5 +1,4 @@
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 
 pub const WaitStatus = enum(wg.enum_WGPUWaitStatus) {
     success = wg.WGPUWaitStatus_Success,

@@ -1,23 +1,38 @@
 const Input = @This();
 
 const std = @import("std");
-const WaylandInput = @import("WaylandInput.zig");
-const WindowInput = @import("../window/linux_wayland.zig").WindowInput;
+const builtin = @import("builtin");
+
+const Underlying = switch (builtin.target.os.tag) {
+    .linux => @import("WaylandInput.zig"),
+    .macos => @import("MacOSInput.zig"),
+    else => undefined,
+};
+
 const Signal = @import("../event/signal.zig").Signal;
 const Events = @import("Events.zig");
 
-pub const InputTag = enum { wayland_input };
-pub const InputSource = union(InputTag) { wayland_input: WaylandInput };
+pub usingnamespace switch (builtin.target.os.tag) {
+    .linux => linux_impl,
+    .macos => macos_impl,
+    else => undefined,
+};
 
-underlying: InputSource,
+underlying: Underlying,
 events: Events,
 
-pub fn initWayland(allocator: std.mem.Allocator, input: *const WindowInput) @This() {
-    const events: Events = Events.init(allocator);
-    const wlinput = WaylandInput.init(&events, input);
+const linux_impl = struct {
+    const WindowInput = @import("../window/linux_wayland.zig").WindowInput;
 
-    return .{
-        .underlying = .{ .wayland_input = wlinput },
-        .events = events,
-    };
-}
+    pub fn initWayland(allocator: std.mem.Allocator, input: *const WindowInput) @This() {
+        const events: Events = Events.init(allocator);
+        const wlinput = Underlying.init(&events, input);
+
+        return .{
+            .underlying = .{ .wayland_input = wlinput },
+            .events = events,
+        };
+    }
+};
+
+const macos_impl = struct {};

@@ -1,9 +1,8 @@
 const Texture = @This();
 
 const std = @import("std");
-const cincludes = @import("../cincludes.zig");
+const wg = @import("cincludes.zig").wg;
 const u = @import("../util.zig");
-const wg = cincludes.wg;
 const TextureView = @import("TextureView.zig");
 
 native: *wg.WGPUTextureImpl,
