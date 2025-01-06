@@ -10,12 +10,6 @@
 [submodule "ext/imgui"]
 	path = ext/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "ext/cimgui"]
-	path = ext/cimgui
-	url = https://github.com/cimgui/cimgui.git
-[submodule "ext/glfw"]
-	path = ext/glfw
-	url = https://github.com/glfw/glfw.git
 [submodule "ext/Nuklear"]
 	path = ext/Nuklear
 	url = https://github.com/Immediate-Mode-UI/Nuklear.git
