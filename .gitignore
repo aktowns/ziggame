@@ -1,5 +1,6 @@
 .idea
 sysroot
+resources/manifest.zig
 ### Zig template
 .zig-cache/
 zig-out/
