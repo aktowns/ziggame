@@ -1,18 +1,18 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const glfw = @cImport({
-    @cInclude("GLFW/glfw3.h");
-    if (!builtin.target.isWasm()) {
-        @cDefine(glfwDefine(), "1");
-        @cInclude("GLFW/glfw3native.h");
-        if (builtin.os.tag == .macos) {
-            @cInclude("clib/macos_surface.h");
-        }
-    } else {
-        @cInclude("contrib.glfw3/GLFW/emscripten_glfw3.h");
-    }
-});
+// pub const glfw = @cImport({
+//     @cInclude("GLFW/glfw3.h");
+//     if (!builtin.target.isWasm()) {
+//         @cDefine(glfwDefine(), "1");
+//         @cInclude("GLFW/glfw3native.h");
+//         if (builtin.os.tag == .macos) {
+//             @cInclude("clib/macos_surface.h");
+//         }
+//     } else {
+//         @cInclude("contrib.glfw3/GLFW/emscripten_glfw3.h");
+//     }
+// });
 
 pub const emscripten = @cImport({
     if (builtin.target.isWasm()) {

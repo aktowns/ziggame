@@ -24,7 +24,9 @@ pub const Surface = switch (builtin.target.os.tag) {
         wl_surface: *Underlying.c.wl_surface,
         wl_display: *Underlying.c.wl_display,
     },
-    .macos => struct {},
+    .macos => struct {
+        layer: Underlying.c.id,
+    },
     else => undefined,
 };
 
@@ -52,12 +54,18 @@ pub fn init(allocator: std.mem.Allocator, options: window_options) @This() {
                 },
             };
         },
-        .macos => .{
-            .width = options.width,
-            .height = options.height,
-            .underlying = undefined,
-            .on_size_changed = SizeChanged.init(allocator),
-            .surface = Surface{},
+        .macos => {
+            var mw = Underlying.init(options.title);
+            mw.setup();
+            return .{
+                .width = options.width,
+                .height = options.height,
+                .underlying = undefined,
+                .on_size_changed = SizeChanged.init(allocator),
+                .surface = Surface{
+                    .layer = mw.layer,
+                },
+            };
         },
         else => unreachable,
     };

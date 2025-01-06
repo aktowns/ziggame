@@ -3,7 +3,6 @@ const GraphicsPlatform = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 const cincludes = @import("cincludes.zig");
-const glfw = cincludes.glfw;
 const u = @import("util.zig");
 const Platform = @import("Platform.zig");
 const Filesystem = @import("filesystem/Filesystem.zig");
@@ -119,7 +118,7 @@ export fn glfwErrorCallback(err: c_int, description: [*c]const u8) void {
 }
 
 pub fn init(options: GraphicsPlatformOptions) !@This() {
-    _ = glfw.glfwSetErrorCallback(glfwErrorCallback);
+    // _ = glfw.glfwSetErrorCallback(glfwErrorCallback);
 
     log.debug(@src(), "Creating webgpu instance", .{});
     const instance = try Instance.init(&wg.WGPUInstanceDescriptor{
@@ -129,26 +128,26 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
         },
     });
 
-    log.debug(@src(), "Initializing GLFW", .{});
-    if (glfw.glfwInit() != 1) {
-        std.log.err("failed to initialize glfw: {?s}", .{"?"});
-        return Error.FailedToInitializeGLFW;
-    }
+    // log.debug(@src(), "Initializing GLFW", .{});
+    // if (glfw.glfwInit() != 1) {
+    //     std.log.err("failed to initialize glfw: {?s}", .{"?"});
+    //     return Error.FailedToInitializeGLFW;
+    // }
 
-    glfw.glfwWindowHint(glfw.GLFW_CLIENT_API, glfw.GLFW_NO_API);
+    // glfw.glfwWindowHint(glfw.GLFW_CLIENT_API, glfw.GLFW_NO_API);
 
     if (builtin.target.isWasm()) {
         log.debug(@src(), "forcing emscripten selector", .{});
         cincludes.glfw.emscripten_glfw_set_next_window_canvas_selector("#canvas");
     }
 
-    const window = glfw.glfwCreateWindow(
-        @intCast(options.window_width),
-        @intCast(options.window_height),
-        @as([*c]const u8, @ptrCast(options.window_title)),
-        null,
-        null,
-    ).?;
+    // const window = glfw.glfwCreateWindow(
+    //     @intCast(options.window_width),
+    //     @intCast(options.window_height),
+    //     @as([*c]const u8, @ptrCast(options.window_title)),
+    //     null,
+    //     null,
+    // ).?;
 
     // WGPUDevice              Device;
     // int                     NumFramesInFlight = 3;
@@ -163,7 +162,7 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     //     PipelineMultisampleState.alphaToCoverageEnabled = false;
     // }
 
-    const surface_source = options.platform.getSurfaceSource(window);
+    const surface_source = options.platform.getSurfaceSource();
 
     log.debug(@src(), "Creating surface (from source {?})", .{surface_source});
     const surface = try instance.createSurfaceFromNative(surface_source);
@@ -282,9 +281,9 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     );
 
     {
-        var width: c_int = 640;
-        var height: c_int = 480;
-        glfw.glfwGetWindowSize(window, &width, &height);
+        const width: c_int = 640;
+        const height: c_int = 480;
+        // glfw.glfwGetWindowSize(window, &width, &height);
         config.width = @intCast(width);
         config.height = @intCast(height);
     }
@@ -528,7 +527,7 @@ pub fn drawUI(self: *@This(), render_pass_encoder: *const RenderPassEncoder) voi
 }
 
 pub fn mainLoop(self: *@This()) !void {
-    glfw.glfwPollEvents();
+    // glfw.glfwPollEvents();
 
     const try_texture = try self.surface.getSurfaceTexture();
     const surface_texture = switch (try_texture) {
@@ -562,7 +561,7 @@ pub fn mainLoop(self: *@This()) !void {
         },
     );
 
-    const time = @mod(cincludes.glfw.glfwGetTime(), 1.0);
+    // const time = @mod(cincludes.glfw.glfwGetTime(), 1.0);
 
     const render_pass_encoder = command_encoder.beginRenderPass(
         &wg.WGPURenderPassDescriptor{
@@ -574,7 +573,7 @@ pub fn mainLoop(self: *@This()) !void {
                     .loadOp = wg.WGPULoadOp_Clear,
                     .storeOp = wg.WGPUStoreOp_Store,
                     .depthSlice = wg.WGPU_DEPTH_SLICE_UNDEFINED,
-                    .clearValue = u.colourR(time, 0.5, 0.5, 1.0),
+                    .clearValue = u.colourR(0.5, 0.5, 0.5, 1.0),
                 },
             },
         },

@@ -42,7 +42,7 @@ fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) vo
         c.linkSystemLibrary("clib", .{});
         c.linkSystemLibrary("webgpu_dawn", .{});
         c.linkSystemLibrary("openal", .{});
-        c.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
+        // c.linkSystemLibrary("glfw3", .{ .preferred_link_mode = .static });
     } else {}
 
     switch (target.result.os.tag) {

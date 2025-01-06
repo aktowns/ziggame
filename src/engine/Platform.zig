@@ -74,8 +74,7 @@ pub const NativeSurface: type = switch (builtin.target.os.tag) {
     else => @compileError("Unsupported Platform"),
 };
 
-pub fn getSurfaceSource(self: *const @This(), window: *glfw.GLFWwindow) NativeSurface {
-    _ = window;
+pub fn getSurfaceSource(self: *const @This()) NativeSurface {
     return switch (builtin.target.os.tag) {
         .linux => getLinuxSurface(&self.window.surface),
         .macos => getMacOSSurface(&self.window.surface),
@@ -92,15 +91,13 @@ pub fn getSurfaceSource(self: *const @This(), window: *glfw.GLFWwindow) NativeSu
 }
 
 fn getMacOSSurface(surface: *const wingman.Window.Surface) wg.WGPUSurfaceDescriptorFromMetalLayer {
-    _ = surface;
-    return undefined;
     // const ns_window = glfw.glfwGetCocoaWindow(window);
     // const layer = cincludes.glfw.getOSXSurface(ns_window);
 
-    // return .{
-    //     .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceMetalLayer },
-    //     .layer = layer,
-    // };
+    return .{
+        .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceMetalLayer },
+        .layer = @ptrCast(surface.layer),
+    };
 }
 
 fn getLinuxSurface(surface: *const wingman.Window.LinuxSurface) wg.WGPUSurfaceDescriptorFromWaylandSurface {
