@@ -9,7 +9,7 @@ pub const c = @cImport({
 
 window: c.id,
 layer: c.id,
-view: c.struct_objc_object,
+view: c.id,
 cache: ClassCache,
 
 const ClassCache = struct {
@@ -108,7 +108,7 @@ pub fn init(title: []const u8) @This() {
     return .{
         .window = window,
         .layer = layer,
-        .view = view.*,
+        .view = view,
         .cache = cache,
     };
 }
@@ -139,7 +139,7 @@ pub fn dispatch(self: *@This()) i32 {
         _ = msg_cls_id(cls("NSApp"), sel("sendEvent:"), event);
     }
 
-    std.log.debug("[{d}] window loop view={?*}", .{ std.Thread.getCurrentId(), &self.view });
-    _ = msg_int(&self.view, sel("setNeedsDisplay:"), YES);
+    std.log.debug("[{d}] window loop view={?*}", .{ std.Thread.getCurrentId(), self.view });
+    _ = msg_int(self.view, sel("setNeedsDisplay:"), YES);
     return 0;
 }
