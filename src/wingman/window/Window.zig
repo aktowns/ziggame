@@ -5,8 +5,8 @@ const builtin = @import("builtin");
 const Signal = @import("../event/signal.zig").Signal;
 
 const Underlying = switch (builtin.target.os.tag) {
-    .linux => @import("linux_wayland.zig"),
-    .macos => @import("macos.zig"),
+    .linux => @import("LinuxWindow.zig"),
+    .macos => @import("MacOSWindow.zig"),
     else => undefined,
 };
 

@@ -1,8 +1,7 @@
 const BindGroupLayout = @This();
 
 const std = @import("std");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 
 native: *wg.WGPUBindGroupLayoutImpl,
 

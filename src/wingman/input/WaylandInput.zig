@@ -3,7 +3,7 @@ pub const WaylandInput = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 const log = @import("../log/log.zig");
-const linux_wayland = @import("../window/linux_wayland.zig");
+const linux_wayland = @import("../window/LinuxWindow.zig");
 const c = linux_wayland.c;
 
 const Events = @import("Events.zig");

@@ -1,8 +1,7 @@
 const CommandEncoder = @This();
 
 const std = @import("std");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 const RenderPassEncoder = @import("RenderPassEncoder.zig");
 const CommandBuffer = @import("CommandBuffer.zig");
 

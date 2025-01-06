@@ -1,0 +1,12 @@
+build:
+	@echo "Building in $(CURDIR)" 
+
+install:
+	@echo "Installing in $(CURDIR)" 
+	cp -v nuklear.h ../../sysroot/include/
+
+update:
+	git pull
+	git submodule update --init --recursive
+
+.PHONY: build install update

@@ -7,7 +7,8 @@ install:
 	cp -v *.h ../../sysroot/include/stb/
 
 update:
-	git pull
+	git reset HEAD --hard
+	git pull origin master
 
 .PHONY: build install update
 

@@ -22,7 +22,7 @@ underlying: Underlying,
 events: Events,
 
 const linux_impl = struct {
-    const WindowInput = @import("../window/linux_wayland.zig").WindowInput;
+    const WindowInput = @import("../window/LinuxWindow.zig").WindowInput;
 
     pub fn initWayland(allocator: std.mem.Allocator, input: *const WindowInput) @This() {
         const events: Events = Events.init(allocator);

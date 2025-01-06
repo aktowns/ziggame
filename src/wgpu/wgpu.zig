@@ -18,3 +18,4 @@ pub const Texture = @import("Texture.zig");
 pub const TextureView = @import("TextureView.zig");
 pub const string_view = @import("string_view.zig");
 pub const enums = @import("enums.zig");
+pub const wg = @import("cincludes.zig").wg;

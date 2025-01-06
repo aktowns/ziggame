@@ -1,8 +1,7 @@
 const RenderPassEncoder = @This();
 
 const std = @import("std");
-const cincludes = @import("../cincludes.zig");
-const wg = cincludes.wg;
+const wg = @import("cincludes.zig").wg;
 const RenderPipeline = @import("RenderPipeline.zig");
 const Buffer = @import("Buffer.zig");
 const BindGroup = @import("BindGroup.zig");

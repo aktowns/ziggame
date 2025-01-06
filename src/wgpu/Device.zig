@@ -10,7 +10,6 @@ const ShaderModule = @import("ShaderModule.zig");
 const CommandEncoder = @import("CommandEncoder.zig");
 const Texture = @import("Texture.zig");
 const Error = @import("error.zig").Error;
-const Image = @import("../media/Image.zig");
 const Buffer = @import("Buffer.zig");
 const Sampler = @import("Sampler.zig");
 const BindGroupLayout = @import("BindGroupLayout.zig");
@@ -64,22 +63,6 @@ pub fn createCommandEncoder(self: *const @This(), descriptor: [*c]const wg.WGPUC
 
 pub fn createTexture(self: *const @This(), descriptor: [*c]const wg.WGPUTextureDescriptor) Texture {
     return Texture.init(wg.wgpuDeviceCreateTexture(self.native, descriptor).?);
-}
-
-pub fn createTextureFromImage(self: *const @This(), image: *const Image) Texture {
-    return self.createTexture(&wg.WGPUTextureDescriptor{
-        .label = string_view.init("image"),
-        .format = wg.WGPUTextureFormat_RGBA8Unorm,
-        .size = wg.WGPUExtent3D{
-            .height = @intCast(image.image.height),
-            .width = @intCast(image.image.width),
-            .depthOrArrayLayers = 1,
-        },
-        .mipLevelCount = 1,
-        .sampleCount = 1,
-        .dimension = wg.WGPUTextureDimension_2D,
-        .usage = wg.WGPUTextureUsage_TextureBinding | wg.WGPUTextureUsage_CopyDst | wg.WGPUTextureUsage_RenderAttachment,
-    });
 }
 
 pub fn createBuffer(self: *const @This(), descriptor: [*c]const wg.WGPUBufferDescriptor) Buffer {

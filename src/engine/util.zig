@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const wg = @import("cincludes.zig").wg;
+const wg = @import("wgpu").wg;
 
 pub inline fn colour(comptime r: f64, comptime g: f64, comptime b: f64, comptime a: f64) wg.WGPUColor {
     return .{

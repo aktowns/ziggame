@@ -41,7 +41,7 @@ pub fn createSurface(self: *const @This(), descriptor: [*c]const wg.WGPUSurfaceD
 pub fn createSurfaceFromNative(self: *const @This(), source: NativeSurfaceDescriptor) Error!Surface {
     const surface_descriptor = wg.WGPUSurfaceDescriptor{
         .nextInChain = @ptrCast(&source),
-        .label = StringView.init("Surface"),
+        .label = string_view.init("Surface"),
     };
 
     return self.createSurface(&surface_descriptor);

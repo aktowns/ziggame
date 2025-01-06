@@ -1,10 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const wg = @cImport({
-    @cInclude("webgpu/webgpu.h");
-});
-
 pub const glfw = @cImport({
     @cInclude("GLFW/glfw3.h");
     if (!builtin.target.isWasm()) {

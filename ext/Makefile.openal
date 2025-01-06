@@ -8,6 +8,7 @@ install:
 	cmake --install out/Release --prefix ../../sysroot/
 
 update:
-	git pull
+	git reset HEAD --hard
+	git pull origin master
 
 .PHONY: build install update

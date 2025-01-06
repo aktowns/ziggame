@@ -4,7 +4,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const cincludes = @import("cincludes.zig");
 const glfw = cincludes.glfw;
-const wg = cincludes.wg;
+const wg = @import("wgpu").wg;
 const Filesystem = @import("filesystem/Filesystem.zig");
 const Audio = @import("media/Audio.zig");
 const wingman = @import("wingman");
@@ -76,8 +76,10 @@ pub const NativeSurface: type = switch (builtin.target.os.tag) {
 
 pub fn getSurfaceSource(self: *const @This(), window: *glfw.GLFWwindow) NativeSurface {
     _ = window;
-    return switch (self.window.surface) {
-        .linux_wayland => |surface| getLinuxSurface(&surface),
+    return switch (builtin.target.os.tag) {
+        .linux => getLinuxSurface(&self.window.surface),
+        .macos => getMacOSSurface(&self.window.surface),
+        else => @compileError("Unsupported Platform"),
     };
     // return switch (self.os.tag) {
     //     //.macos => getMacOSSurface(window),
@@ -89,14 +91,16 @@ pub fn getSurfaceSource(self: *const @This(), window: *glfw.GLFWwindow) NativeSu
     // };
 }
 
-fn getMacOSSurface(window: *glfw.GLFWwindow) wg.WGPUSurfaceDescriptorFromMetalLayer {
-    const ns_window = glfw.glfwGetCocoaWindow(window);
-    const layer = cincludes.glfw.getOSXSurface(ns_window);
+fn getMacOSSurface(surface: *const wingman.Window.Surface) wg.WGPUSurfaceDescriptorFromMetalLayer {
+    _ = surface;
+    return undefined;
+    // const ns_window = glfw.glfwGetCocoaWindow(window);
+    // const layer = cincludes.glfw.getOSXSurface(ns_window);
 
-    return .{
-        .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceMetalLayer },
-        .layer = layer,
-    };
+    // return .{
+    //     .chain = wg.WGPUChainedStruct{ .sType = wg.WGPUSType_SurfaceSourceMetalLayer },
+    //     .layer = layer,
+    // };
 }
 
 fn getLinuxSurface(surface: *const wingman.Window.LinuxSurface) wg.WGPUSurfaceDescriptorFromWaylandSurface {

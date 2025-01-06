@@ -3,13 +3,13 @@ const GraphicsPlatform = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 const cincludes = @import("cincludes.zig");
-const wg = cincludes.wg;
 const glfw = cincludes.glfw;
 const u = @import("util.zig");
 const Platform = @import("Platform.zig");
 const Filesystem = @import("filesystem/Filesystem.zig");
 
 const w = @import("wgpu");
+const wg = w.wg;
 const Instance = w.Instance;
 const Surface = w.Surface;
 const Device = w.Device;
@@ -25,6 +25,7 @@ const wge = @import("wgpu").enums;
 const Image = @import("media/Image.zig");
 const log = @import("wingman").log;
 const nuklear = cincludes.nuklear;
+const string_view = w.string_view;
 
 instance: Instance,
 surface: Surface,
@@ -121,7 +122,7 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     _ = glfw.glfwSetErrorCallback(glfwErrorCallback);
 
     log.debug(@src(), "Creating webgpu instance", .{});
-    const instance = try Instance.init(options.platform, &wg.WGPUInstanceDescriptor{
+    const instance = try Instance.init(&wg.WGPUInstanceDescriptor{
         .features = wg.WGPUInstanceFeatures{
             .timedWaitAnyEnable = 1,
             .timedWaitAnyMaxCount = 10,
@@ -188,7 +189,7 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     //defer shaderModule.deinit();
 
     const bind_group_layout = device.createBindGroupLayout(&wg.WGPUBindGroupLayoutDescriptor{
-        .label = u.stringView("bind_group_layout"),
+        .label = string_view.init("bind_group_layout"),
         .entryCount = 2,
         .entries = &[_]wg.WGPUBindGroupLayoutEntry{
             wg.WGPUBindGroupLayoutEntry{
@@ -211,7 +212,7 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     });
 
     const pipeline_layout = device.createPipelineLayout(&wg.WGPUPipelineLayoutDescriptor{
-        .label = u.stringView("pipeline_layout"),
+        .label = string_view.init("pipeline_layout"),
         .bindGroupLayouts = &[_]wg.WGPUBindGroupLayout{bind_group_layout.native},
         .bindGroupLayoutCount = 1,
     });
@@ -241,17 +242,17 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     };
 
     const render_pipeline = device.createRenderPipeline(&wg.WGPURenderPipelineDescriptor{
-        .label = u.stringView("render_pipeline"),
+        .label = string_view.init("render_pipeline"),
         .layout = pipeline_layout.native,
         .vertex = wg.WGPUVertexState{
             .module = shader_module.native,
-            .entryPoint = u.stringView("vs_main"),
+            .entryPoint = string_view.init("vs_main"),
             .buffers = &[_]wg.WGPUVertexBufferLayout{buffer_layout},
             .bufferCount = 1,
         },
         .fragment = &wg.WGPUFragmentState{
             .module = shader_module.native,
-            .entryPoint = u.stringView("fs_main"),
+            .entryPoint = string_view.init("fs_main"),
             .targetCount = 1,
             .targets = &[_]wg.WGPUColorTargetState{
                 wg.WGPUColorTargetState{
@@ -291,11 +292,11 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     surface.configure(config);
 
     const image = try Image.init(options.platform, "/tilemap.png");
-    const txtr = device.createTextureFromImage(&image);
+    const txtr = image.createTexture(&device);
     const txtr_view = txtr.createView(null);
 
     const vertex_buffer = device.createBuffer(&wg.WGPUBufferDescriptor{
-        .label = u.stringView("vertex_buffer"),
+        .label = string_view.init("vertex_buffer"),
         .size = @intCast(@sizeOf(Vertex) * vertices.len),
         .usage = wg.WGPUBufferUsage_Vertex | wg.WGPUBufferUsage_CopyDst,
     });
@@ -307,7 +308,7 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     // });
 
     const index_buffer = device.createBuffer(&wg.WGPUBufferDescriptor{
-        .label = u.stringView("index_buffer"),
+        .label = string_view.init("index_buffer"),
         .size = @intCast(@sizeOf(u16) * indices.len),
         .usage = wg.WGPUBufferUsage_Index | wg.WGPUBufferUsage_CopyDst,
     });
@@ -315,35 +316,35 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     queue.writeBuffer(vertex_buffer, 0, std.mem.asBytes(&vertices));
     queue.writeBuffer(index_buffer, 0, std.mem.asBytes(&indices));
 
-    const sampler = device.createSamplerT(Device.CreateSamplerDescriptor{
-        .address_mode_u = wge.AddressMode.clamp_to_edge,
-        .address_mode_v = wge.AddressMode.clamp_to_edge,
-        .address_mode_w = wge.AddressMode.clamp_to_edge,
-        .mag_filter = wge.FilterMode.linear,
-        .min_filter = wge.FilterMode.nearest,
-        .mipmap_filter = wge.MipmapFilterMode.nearest,
-        .lod_min_clamp = 0.0,
-        .lod_max_clamp = 32.0,
-        .compare = wge.CompareFunction.undef,
-        .max_anisotropy = 1,
-    });
-
-    // const sampler = device.createSampler(&wg.WGPUSamplerDescriptor{
-    //     .label = u.stringView("sampler"),
-    //     .addressModeU = @intFromEnum(wge.AddressMode.clamp_to_edge),
-    //     .addressModeV = @intFromEnum(wge.AddressMode.clamp_to_edge),
-    //     .addressModeW = @intFromEnum(wge.AddressMode.clamp_to_edge),
-    //     .magFilter = wg.WGPUFilterMode_Linear,
-    //     .minFilter = wg.WGPUFilterMode_Nearest,
-    //     .mipmapFilter = wg.WGPUFilterMode_Nearest,
-    //     .lodMinClamp = 0.0,
-    //     .lodMaxClamp = 32.0,
-    //     .compare = wg.WGPUCompareFunction_Undefined,
-    //     .maxAnisotropy = 1,
+    // const sampler = device.createSamplerT(Device.CreateSamplerDescriptor{
+    //     .address_mode_u = wge.AddressMode.clamp_to_edge,
+    //     .address_mode_v = wge.AddressMode.clamp_to_edge,
+    //     .address_mode_w = wge.AddressMode.clamp_to_edge,
+    //     .mag_filter = wge.FilterMode.linear,
+    //     .min_filter = wge.FilterMode.nearest,
+    //     .mipmap_filter = wge.MipmapFilterMode.nearest,
+    //     .lod_min_clamp = 0.0,
+    //     .lod_max_clamp = 32.0,
+    //     .compare = wge.CompareFunction.undef,
+    //     .max_anisotropy = 1,
     // });
 
+    const sampler = device.createSampler(&wg.WGPUSamplerDescriptor{
+        .label = string_view.init("sampler"),
+        .addressModeU = @intFromEnum(wge.AddressMode.clamp_to_edge),
+        .addressModeV = @intFromEnum(wge.AddressMode.clamp_to_edge),
+        .addressModeW = @intFromEnum(wge.AddressMode.clamp_to_edge),
+        .magFilter = wg.WGPUFilterMode_Linear,
+        .minFilter = wg.WGPUFilterMode_Nearest,
+        .mipmapFilter = wg.WGPUFilterMode_Nearest,
+        .lodMinClamp = 0.0,
+        .lodMaxClamp = 32.0,
+        .compare = wg.WGPUCompareFunction_Undefined,
+        .maxAnisotropy = 1,
+    });
+
     const img_bind_group = device.createBindGroup(&wg.WGPUBindGroupDescriptor{
-        .label = u.stringView("bind_group"),
+        .label = string_view.init("bind_group"),
         .layout = bind_group_layout.native,
         .entryCount = 2,
         .entries = &[_]wg.WGPUBindGroupEntry{
@@ -406,13 +407,13 @@ pub fn initUI(platform: *Platform, device: *const Device) !UIConfig {
     _ = nuklear.nk_init_default(&nkctx, &font.*.handle);
 
     const vertex_buffer = device.createBuffer(&wg.WGPUBufferDescriptor{
-        .label = u.stringView("ui_vertex_buffer"),
+        .label = string_view.init("ui_vertex_buffer"),
         .size = 256, // @intCast(@sizeOf(Vertex) * vertices.len),
         .usage = wg.WGPUBufferUsage_CopySrc | wg.WGPUBufferUsage_MapWrite,
     });
 
     const index_buffer = device.createBuffer(&wg.WGPUBufferDescriptor{
-        .label = u.stringView("index_buffer"),
+        .label = string_view.init("index_buffer"),
         .size = @intCast(@sizeOf(u16) * indices.len),
         .usage = wg.WGPUBufferUsage_Index | wg.WGPUBufferUsage_CopyDst,
     });
@@ -549,14 +550,15 @@ pub fn mainLoop(self: *@This()) !void {
         },
     };
 
-    self.queue.writeImageToTexture(&self.image, &self.texture);
+    self.image.writeToTexture(&self.queue, &self.texture);
+    // self.queue.writeImageToTexture(&self.image, &self.texture);
     // queue.copyExternalImageToTexture(&image, &surfaceTexture.texture);
 
     const frame = surface_texture.texture.createView(null);
     // const frame = txtr.createView(null);
     const command_encoder = self.device.createCommandEncoder(
         &wg.WGPUCommandEncoderDescriptor{
-            .label = u.stringView("command_encoder"),
+            .label = string_view.init("command_encoder"),
         },
     );
 
@@ -564,7 +566,7 @@ pub fn mainLoop(self: *@This()) !void {
 
     const render_pass_encoder = command_encoder.beginRenderPass(
         &wg.WGPURenderPassDescriptor{
-            .label = u.stringView("render_pass_encoder"),
+            .label = string_view.init("render_pass_encoder"),
             .colorAttachmentCount = 1,
             .colorAttachments = &[_]wg.WGPURenderPassColorAttachment{
                 wg.WGPURenderPassColorAttachment{
@@ -612,7 +614,7 @@ pub fn mainLoop(self: *@This()) !void {
 
     const command_buffer = command_encoder.finish(
         &wg.WGPUCommandBufferDescriptor{
-            .label = u.stringView("command_buffer"),
+            .label = string_view.init("command_buffer"),
         },
     );
 
