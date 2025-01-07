@@ -102,6 +102,15 @@ export fn on_resize(self: c.id, s: c.SEL, size: c.CGSize) c.CGSize {
     return size;
 }
 
+export fn on_close(self: c.id, s: c.SEL, sender: c.id) c.BOOL {
+    _ = self;
+    _ = s;
+    _ = sender;
+    std.log.debug("onClose:", .{});
+
+    return true;
+}
+
 export fn can_become_key_window() bool {
     std.log.debug("can become key window", .{});
     return true;
@@ -125,6 +134,7 @@ pub fn init(window_options: *const WindowOptions) @This() {
 
     const WindowDelegate = allocate_cls(cls("NSObject"), "WindowDelegate", 0);
     _ = add_method(WindowDelegate, sel("windowWillResize:toSize:"), @ptrCast(&on_resize), "{NSSize=ff}@:{NSSize=ff}");
+    _ = add_method(WindowDelegate, sel("windowShouldClose:"), @ptrCast(&on_close), "B@:{NSWindow}");
 
     const ContentView = allocate_cls(cls("NSView"), "ContentView", 0);
 
