@@ -3,6 +3,7 @@ pub const Window = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 const Signal = @import("../event/signal.zig").Signal;
+const WindowOptions = @import("WindowOptions.zig");
 
 const Underlying = switch (builtin.target.os.tag) {
     .linux => @import("LinuxWindow.zig"),
@@ -30,16 +31,10 @@ pub const Surface = switch (builtin.target.os.tag) {
     else => undefined,
 };
 
-pub const window_options = struct {
-    title: []const u8,
-    width: u32,
-    height: u32,
-};
-
-pub fn init(allocator: std.mem.Allocator, options: window_options) @This() {
+pub fn init(allocator: std.mem.Allocator, options: WindowOptions) @This() {
     return switch (comptime builtin.target.os.tag) {
         .linux => {
-            var lw = Underlying.init(options.title);
+            var lw = Underlying.init(&options);
             lw.setup();
             return .{
                 .width = options.width,
@@ -55,12 +50,12 @@ pub fn init(allocator: std.mem.Allocator, options: window_options) @This() {
             };
         },
         .macos => {
-            var mw = Underlying.init(options.title);
+            var mw = Underlying.init(&options);
             mw.setup();
             return .{
                 .width = options.width,
                 .height = options.height,
-                .underlying = undefined,
+                .underlying = mw,
                 .on_size_changed = SizeChanged.init(allocator),
                 .surface = Surface{
                     .layer = mw.layer,

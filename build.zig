@@ -10,14 +10,10 @@ pub fn build(b: *Build) !void {
 
     const dep_zalgebra = b.dependency("zalgebra", .{ .target = target, .optimize = optimize });
     const dep_xml = b.dependency("xml", .{ .target = target, .optimize = optimize });
-    const dep_zigimg = b.dependency("zigimg", .{ .target = target, .optimize = optimize });
-    const dep_pretty = b.dependency("pretty", .{ .target = target, .optimize = optimize });
 
     const deps = [_]struct { []const u8, *Build.Dependency }{
         .{ "zalgebra", dep_zalgebra },
         .{ "xml", dep_xml },
-        .{ "pretty", dep_pretty },
-        .{ "zigimg", dep_zigimg },
     };
 
     try buildNative(b, target, optimize, &deps);
@@ -79,13 +75,24 @@ fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode)
     const wingman = b.addStaticLibrary(.{ .name = "wingman", .root_module = wingman_mod });
     wingman.linkLibC();
 
-    if (builtin.target.os.tag == .linux) {
-        wingman.linkSystemLibrary("wayland-client");
+    switch (builtin.target.os.tag) {
+        .linux => {
+            wingman.linkSystemLibrary("wayland-client");
 
-        wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-shell-protocol.c") });
-        wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-decoration-unstable-v1.c") });
+            wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-shell-protocol.c") });
+            wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-decoration-unstable-v1.c") });
 
-        wingman.addIncludePath(b.path("src/wingman/window/c"));
+            wingman.addIncludePath(b.path("src/wingman/window/c"));
+        },
+        .macos => {
+            wingman.linkFramework("Foundation");
+            wingman.linkFramework("AppKit");
+            wingman.linkFramework("Cocoa");
+            wingman.linkFramework("CoreFoundation");
+            wingman.linkFramework("Metal");
+            wingman.linkFramework("QuartzCore");
+        },
+        else => @compileError("Unsupported Platform"),
     }
 
     const wingman_demo_mod = b.createModule(.{
