@@ -4,21 +4,20 @@ const std = @import("std");
 const WindowOptions = @import("WindowOptions.zig");
 const assert = std.debug.assert;
 
-pub const c = @cImport({
-    @cInclude("objc/runtime.h");
-    @cInclude("objc/message.h");
-    @cInclude("Carbon/Carbon.h");
-});
+pub const c = @import("../native/macos/cinclude.zig").c;
 
-app: c.id,
-window: c.id,
+const Class = @import("../native/macos/Class.zig");
+const Obj = @import("../native/macos/Obj.zig");
+
+app: Obj,
+window: Obj,
 layer: c.id,
 view: c.id,
+cc: ClassCache,
 
 const ClassCache = struct {
-    NSApp: c.Class,
-    NSDate: c.Class,
-    NSDefaultRunLoopMode: c.id,
+    NSApplication: Class,
+    NSDate: Class,
 };
 
 const YES: c.BOOL = true;
@@ -122,13 +121,23 @@ export fn can_become_main_window() bool {
 }
 
 pub fn init(window_options: *const WindowOptions) @This() {
+    const cc: ClassCache = .{
+        .NSApplication = Class.from_name_strict("NSApplication"),
+        .NSDate = Class.from_name_strict("NSDate"),
+    };
+
     const rect: c.CGRect = .{ .origin = .{ .x = 0, .y = 0 }, .size = .{
         .height = @floatFromInt(window_options.height),
         .width = @floatFromInt(window_options.width),
     } };
-    const app = cmsg_id(cls("NSApplication"), sel("sharedApplication"));
-    assert(app != null);
-    msg_void_uint(app, sel("setActivationPolicy:"), 0);
+
+    const app = cc.NSApplication.send(Obj, "sharedApplication", .{});
+    // const app = Class.from_name_strict("NSApplication").send(Obj, "sharedApplication", .{});
+    app.send(void, "setActivationPolicy:", .{0});
+
+    // const app = cmsg_id(cls("NSApplication"), sel("sharedApplication"));
+    // assert(app != null);
+    // msg_void_uint(app, sel("setActivationPolicy:"), 0);
 
     const window_style: c_ulong = NSWindowStyleMask.NSWindowStyleMaskClosable | NSWindowStyleMask.NSWindowStyleMaskMiniaturizable | NSBackingStoreType.NSBackingStoreBuffered | NSWindowStyleMask.NSWindowStyleMaskTitled | NSWindowStyleMask.NSWindowStyleMaskResizable;
 
@@ -150,43 +159,68 @@ pub fn init(window_options: *const WindowOptions) @This() {
     );
     assert(view != null);
 
-    const window = @as(*const fn (cl: c.id, s: c.SEL, rect: c.CGRect, style_mask: c_int, backing: c_int, deferred: c.BOOL) callconv(.c) c.id, @ptrCast(&c.objc_msgSend))(
-        cmsg_id(ZenWindow, sel("alloc")),
-        sel("initWithContentRect:styleMask:backing:defer:"),
-        rect,
-        window_style,
-        window_style,
-        NO,
-    );
-    assert(window != null);
-    msg_void_id(window, sel("setContentView:"), view);
+    const window = Class.from_native(ZenWindow)
+        .send(Obj, "alloc", .{})
+        .send(Obj, "initWithContentRect:styleMask:backing:defer:", .{ rect, window_style, window_style, NO });
+    // const window = @as(*const fn (cl: c.id, s: c.SEL, rect: c.CGRect, style_mask: c_int, backing: c_int, deferred: c.BOOL) callconv(.c) c.id, @ptrCast(&c.objc_msgSend))(
+    //     cmsg_id(ZenWindow, sel("alloc")),
+    //     sel("initWithContentRect:styleMask:backing:defer:"),
+    //     rect,
+    //     window_style,
+    //     window_style,
+    //     NO,
+    // );
+    // assert(window != null);
+    window.send(void, "setContentView:", .{view});
+    // msg_void_id(window, sel("setContentView:"), view);
 
     // _ = msg_id(msg_cls(cls("NSWindowController"), sel("alloc")), sel("initWithWindow:"), window);
 
-    const menubar = cmsg_id(cls("NSMenu"), sel("new"));
-    const menubar_item = cmsg_id(cls("NSMenuItem"), sel("new"));
-    msg_void_id(menubar, sel("addItem:"), menubar_item);
-    msg_void_id(app, sel("setMainMenu:"), menubar);
+    const menubar = Class.from_name_strict("NSMenu").send(Obj, "new", .{});
+    // const menubar = cmsg_id(cls("NSMenu"), sel("new"));
+    const menubar_item = Class.from_name_strict("NSMenuItem").send(Obj, "new", .{});
+    //const menubar_item = cmsg_id(cls("NSMenuItem"), sel("new"));
+    menubar.send(void, "addItem:", .{menubar_item});
+    // msg_void_id(menubar, sel("addItem:"), menubar_item);
+    app.send(void, "setMainMenu:", .{menubar});
+    // msg_void_id(app, sel("setMainMenu:"), menubar);
 
     const delegate = msg_id(cmsg_id(WindowDelegate, sel("alloc")), sel("init"));
-    msg_void_id(window, sel("setDelegate:"), delegate);
-    msg_void_id(app, sel("setDelegate:"), delegate);
+    //msg_void_id(window, sel("setDelegate:"), delegate);
+    window.send(void, "setDelegate:", .{delegate});
+    app.send(void, "setDelegate:", .{delegate});
+    // msg_void_id(app, sel("setDelegate:"), delegate);
 
-    msg_void_bool(app, sel("activateIgnoringOtherApps:"), YES);
-    msg_void_ptr(window, sel("makeKeyAndOrderFront:"), c.nil);
-    msg_void_bool(window, sel("setIsVisible:"), YES);
+    app.send(void, "activateIgnoringOtherApps:", .{YES});
+    // msg_void_bool(app, sel("activateIgnoringOtherApps:"), YES);
+    window.send(void, "makeKeyAndOrderFront:", .{c.nil});
+    window.send(void, "setIsVisible:", .{YES});
+    //msg_void_ptr(window, sel("makeKeyAndOrderFront:"), c.nil);
+    //msg_void_bool(window, sel("setIsVisible:"), YES);
 
-    msg_void(app, sel("finishLaunching"));
+    app.send(void, "finishLaunching", .{});
+    // msg_void(app, sel("finishLaunching"));
 
-    msg_void_id(window, sel("setTitle:"), cmsg_id_chr(cls("NSString"), sel("stringWithUTF8String:"), @ptrCast(window_options.title)));
+    window.send(
+        void,
+        "setTitle:",
+        .{
+            Class.from_name_strict("NSString").send(c.id, "stringWithUTF8String:", .{@as([*c]const u8, @ptrCast(window_options.title))}),
+        },
+    );
+
+    //msg_void_id(window, sel("setTitle:"), cmsg_id_chr(cls("NSString"), sel("stringWithUTF8String:"), @ptrCast(window_options.title)));
 
     //const view = msg_id(window, sel("contentView"));
     //assert(view != null);
-    const layer = cmsg_id(cls("CAMetalLayer"), sel("layer"));
-    assert(layer != null);
+    const layer = Class.from_name_strict("CAMetalLayer").send(Obj, "layer", .{});
+    // const layer = cmsg_id(cls("CAMetalLayer"), sel("layer"));
+    // assert(layer != null);
+    layer.send(void, "setWantsLayer:", .{YES});
+    layer.send(void, "setLayer:", .{layer.native});
 
-    msg_void_uint(view, sel("setWantsLayer:"), 1);
-    msg_void_ptr(view, sel("setLayer:"), layer);
+    // msg_void_uint(view, sel("setWantsLayer:"), 1);
+    // msg_void_ptr(view, sel("setLayer:"), layer);
 
     std.log.debug("[{d}] created window, view={?*}", .{ std.Thread.getCurrentId(), view });
 
@@ -195,6 +229,7 @@ pub fn init(window_options: *const WindowOptions) @This() {
         .window = window,
         .layer = layer,
         .view = view,
+        .cc = cc,
     };
 }
 
@@ -209,20 +244,27 @@ pub fn dispatch(self: *@This()) i32 {
         const pool = msg_id(cmsg_id(cls("NSAutoreleasePool"), sel("alloc")), sel("init"));
         defer msg_void(pool, sel("release"));
 
-        const event = @as(*const fn (cl: c.id, s: c.SEL, mask: c_ulong, date: c.id, in: c.id, deq: c.BOOL) callconv(.c) c.id, @ptrCast(&c.objc_msgSend))(
-            self.app,
-            sel("nextEventMatchingMask:untilDate:inMode:dequeue:"),
-            std.math.maxInt(u64), // NSAnyEventMask
-            null,
+        const event = self.app.send(c.id, "nextEventMatchingMask:untilDate:inMode:dequeue:", .{
+            @as(c_ulong, std.math.maxInt(u64)),
+            @as(c.id, null),
             NSDefaultRunLoopMode,
             YES,
-        );
+        });
+        // const event = @as(*const fn (cl: c.id, s: c.SEL, mask: c_ulong, date: c.id, in: c.id, deq: c.BOOL) callconv(.c) c.id, @ptrCast(&c.objc_msgSend))(
+        //     self.app,
+        //     sel("nextEventMatchingMask:untilDate:inMode:dequeue:"),
+        //     std.math.maxInt(u64), // NSAnyEventMask
+        //     null,
+        //     NSDefaultRunLoopMode,
+        //     YES,
+        // );
 
         if (event == @as(c.id, @alignCast(@ptrCast(c.nil)))) {
             break;
         }
 
-        msg_void_id(self.app, sel("sendEvent:"), event);
+        self.app.send(void, "sendEvent:", .{event});
+        //msg_void_id(self.app, sel("sendEvent:"), event);
     }
     // msg_void_bool(self.view, sel("setNeedsDisplay:"), YES);
     return 0;
