@@ -122,21 +122,25 @@ const kScreenHeight = 600;
 //     sg.shutdown();
 // }
 
-pub fn main() anyerror!void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer {
-        _ = gpa.deinit();
-    }
+const MyState = struct {};
+const MyGame = engine.Game(MyState);
 
-    const allocator: std.mem.Allocator = if (builtin.target.isWasm()) alloc: {
-        const wa = std.heap.c_allocator;
-        _ = try wa.alloc(u8, 10);
-        break :alloc wa;
-    } else alloc: {
-        //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        const allocator = gpa.allocator();
-        break :alloc allocator;
+pub fn setup() MyState {
+    return .{};
+}
+
+pub fn loop(state: MyState) void {
+    _ = state;
+}
+
+pub fn main() anyerror!void {
+    const myGame = MyGame{
+        .loop = loop,
+        .setup = setup,
     };
+
+    myGame.start();
+
     // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     // defer {
     //     _ = gpa.deinit();
@@ -147,13 +151,6 @@ pub fn main() anyerror!void {
     // defer map.deinit();
     // std.log.info("map={?}", .{map});
     // try pretty.print(allocator, map, .{ .array_max_len = 3, .max_depth = 20, .slice_u8_is_str = false });
-
-    var platform = try engine.Platform.getCurrentPlatform(allocator);
-    defer platform.deinit();
-    std.log.info("[Main] Using platform: {s}", .{platform.name});
-    var gfx = try engine.GraphicsPlatform.init(.{ .window_height = 480, .window_width = 640, .window_title = "ZenEng", .platform = &platform });
-    defer gfx.deinit();
-    try gfx.start();
 
     //sapp.run(.{ .init_cb = init, .frame_cb = frame, .event_cb = input, .cleanup_cb = cleanup, .width = kScreenWidth, .height = kScreenHeight, .sample_count = 4, .icon = .{ .sokol_default = true }, .window_title = "test", .logger = .{ .func = slog.func } });
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
