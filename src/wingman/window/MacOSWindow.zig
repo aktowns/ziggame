@@ -24,7 +24,9 @@ const ClassCache = struct {
     NSObject: c.Class,
     NSView: c.Class,
     NSWindow: c.Class,
+    NSWindowController: c.Class,
     CAMetalLayer: c.Class,
+    NSAutoreleasePool: c.Class,
     NSDefaultRunLoopMode: c.id,
 };
 
@@ -90,7 +92,9 @@ pub fn init(window_options: *const WindowOptions) @This() {
         .NSObject = class.from_name_strict("NSObject"),
         .NSView = class.from_name_strict("NSView"),
         .NSWindow = class.from_name_strict("NSWindow"),
+        .NSWindowController = class.from_name_strict("NSWindowController"),
         .CAMetalLayer = class.from_name_strict("CAMetalLayer"),
+        .NSAutoreleasePool = class.from_name_strict("NSAutoreleasePool"),
         .NSDefaultRunLoopMode = send(
             class.from_name_strict("NSString"),
             c.id,
@@ -137,7 +141,7 @@ pub fn init(window_options: *const WindowOptions) @This() {
 
     send(window, void, "setContentView:", .{view});
 
-    // _ = msg_id(msg_cls(cls("NSWindowController"), sel("alloc")), sel("initWithWindow:"), window);
+    send(class.alloc(cc.NSWindowController), void, "initWithWindow:", .{window});
 
     const menubar = send(cc.NSMenu, c.id, "new", .{});
     const menubar_item = send(cc.NSMenuItem, c.id, "new", .{});
@@ -189,8 +193,8 @@ pub fn setup(self: *@This()) void {
 
 pub fn dispatch(self: *@This()) i32 {
     while (true) {
-        // const pool = msg_id(cmsg_id(cls("NSAutoreleasePool"), sel("alloc")), sel("init"));
-        // defer msg_void(pool, sel("release"));
+        const pool = send(class.alloc(self.cc.NSAutoreleasePool), c.id, "init", .{});
+        defer send(pool, void, "release", .{});
 
         const event = send(
             self.app,
@@ -208,8 +212,11 @@ pub fn dispatch(self: *@This()) i32 {
             break;
         }
 
+        std.log.debug("Window event: {?*}", .{event});
+
         send(self.app, void, "sendEvent:", .{event});
     }
-    // msg_void_bool(self.view, sel("setNeedsDisplay:"), YES);
+
+    send(self.view, void, "setNeedsDisplay:", .{YES});
     return 0;
 }
