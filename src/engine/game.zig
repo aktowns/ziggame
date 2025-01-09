@@ -23,7 +23,6 @@ pub fn Game(comptime State: type) type {
             const wa = std.heap.c_allocator;
             break :alloc wa;
         } else alloc: {
-            //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
             const alloc = gpa.allocator();
             break :alloc alloc;
         };
@@ -36,6 +35,7 @@ pub fn Game(comptime State: type) type {
         }
 
         pub fn shutdown(self: *@This()) void {
+            _ = self;
             gpa.deinit();
         }
     };

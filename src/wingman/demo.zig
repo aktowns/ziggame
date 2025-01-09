@@ -15,7 +15,7 @@ pub fn main() !void {
         .macos => {
             var wm = wingman.Window.init(allocator, .{ .title = "testing", .height = 640, .width = 480 });
             while (wm.dispatch() == 0) {
-                std.Thread.sleep(std.time.ns_per_ms * 100);
+                std.Thread.sleep(std.time.ns_per_ms * 10);
             }
         },
         else => unreachable,

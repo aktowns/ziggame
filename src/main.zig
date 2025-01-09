@@ -129,12 +129,12 @@ pub fn setup() MyState {
     return .{};
 }
 
-pub fn loop(state: MyState) void {
+pub fn loop(state: *MyState) void {
     _ = state;
 }
 
 pub fn main() anyerror!void {
-    const myGame = MyGame{
+    var myGame = MyGame{
         .loop = loop,
         .setup = setup,
     };

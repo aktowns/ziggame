@@ -4,6 +4,10 @@ const c = @import("cinclude.zig").c;
 
 const Fn = std.builtin.Type.Fn;
 
+pub fn alloc(target: c.Class) c.id {
+    return send(target, c.id, "alloc", .{});
+}
+
 pub fn send(target: anytype, comptime ret: type, comptime selector: []const u8, args: anytype) ret {
     const ArgsType = @TypeOf(args);
     const args_type_info = @typeInfo(ArgsType);
@@ -13,21 +17,33 @@ pub fn send(target: anytype, comptime ret: type, comptime selector: []const u8, 
     const fields_info = args_type_info.@"struct".fields;
 
     const target_type = @TypeOf(target);
-
     assert(target_type == c.Class or target_type == c.id);
 
     // compiletime co-erce args to generate objc sig
-    comptime var ps: [fields_info.len + 2]Fn.Param = undefined;
-    comptime {
+    const type_info = comptime brk: {
+        var ps: [fields_info.len + 2]Fn.Param = undefined;
         ps[0] = Fn.Param{ .type = target_type, .is_generic = false, .is_noalias = false };
         ps[1] = Fn.Param{ .type = c.SEL, .is_generic = false, .is_noalias = false };
         for (fields_info, 2..) |*field, i| {
             // This should be dropped or improved in somewway, but atm catch any weird args being passed in
-            assert(field.type == c.id or field.type == c.Class or field.type == c_uint);
-
+            // if (field.type != c.id and
+            //     field.type != c.Class and
+            //     field.type != c_uint and
+            //     field.type != bool and
+            //     field.type != [*c]const u8 and
+            //     field.type != c.CGRect and
+            //     field.type != c_ulong and
+            //     field.type != comptime_int and
+            //     field.type != ?*anyopaque)
+            // {
+            //     @compileLog(field.type);
+            //     @compileError("expected type");
+            // }
             ps[i] = Fn.Param{ .type = field.type, .is_generic = false, .is_noalias = false };
         }
-    }
+
+        break :brk ps;
+    };
 
     const constructed = @Type(.{
         .pointer = .{
@@ -43,7 +59,7 @@ pub fn send(target: anytype, comptime ret: type, comptime selector: []const u8, 
                 .calling_convention = .c,
                 .is_generic = false,
                 .is_var_args = false,
-                .params = &ps,
+                .params = &type_info,
             } }),
         },
     });
