@@ -108,7 +108,7 @@ pub fn createShaderModuleFromFile(platform: *const Platform, device: *const Devi
 
 export fn animation_frame_cb(user_data: ?*anyopaque) void {
     const self = @as(*@This(), @alignCast(@ptrCast(user_data)));
-    self.mainLoop() catch |err| {
+    self.main_loop() catch |err| {
         std.log.debug("mainloop error {?}", .{err});
     };
 }
@@ -379,17 +379,6 @@ pub fn init(options: GraphicsPlatformOptions) !@This() {
     };
 }
 
-pub fn start(self: *@This()) !void {
-    if (!builtin.target.isWasm()) {
-        //while (glfw.glfwWindowShouldClose(self.window) == glfw.GLFW_FALSE) {
-        while (self.platform.window.dispatch() == 0) {
-            try self.mainLoop();
-        }
-    } else {
-        cincludes.emscripten.emscripten_set_main_loop_arg(animation_frame_cb, @constCast(self), 0, true);
-    }
-}
-
 pub fn initUI(platform: *Platform, device: *const Device) !UIConfig {
     var nkctx = nuklear.nk_context{};
     const atlas = try platform.allocator.create(nuklear.nk_font_atlas);
@@ -526,7 +515,7 @@ pub fn drawUI(self: *@This(), render_pass_encoder: *const RenderPassEncoder) voi
     nuklear.nk_buffer_clear(&self.ui.cmds);
 }
 
-pub fn mainLoop(self: *@This()) !void {
+pub fn main_loop(self: *@This()) !void {
     // glfw.glfwPollEvents();
 
     const try_texture = try self.surface.getSurfaceTexture();

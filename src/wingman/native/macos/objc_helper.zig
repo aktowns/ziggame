@@ -4,8 +4,16 @@ const c = @import("cinclude.zig").c;
 
 const Fn = std.builtin.Type.Fn;
 
-pub fn alloc(target: c.Class) c.id {
-    return send(target, c.id, "alloc", .{});
+pub fn autorelease(obj: c.id) c.id {
+    return send(obj, c.id, "autorelease", .{});
+}
+
+pub fn release(obj: c.id) void {
+    return send(obj, void, "release", .{});
+}
+
+pub fn init(obj: c.id) c.id {
+    return send(obj, c.id, "init", .{});
 }
 
 pub fn send(target: anytype, comptime ret: type, comptime selector: []const u8, args: anytype) ret {
@@ -18,6 +26,7 @@ pub fn send(target: anytype, comptime ret: type, comptime selector: []const u8, 
 
     const target_type = @TypeOf(target);
     assert(target_type == c.Class or target_type == c.id);
+    assert(target != null);
 
     // compiletime co-erce args to generate objc sig
     const type_info = comptime brk: {
@@ -65,5 +74,12 @@ pub fn send(target: anytype, comptime ret: type, comptime selector: []const u8, 
     });
 
     const f: constructed = @ptrCast(&c.objc_msgSend);
-    return @call(.auto, f, .{ target, c.sel_registerName(@ptrCast(selector)) } ++ args);
+    const ret_value = @call(.auto, f, .{ target, c.sel_registerName(@ptrCast(selector)) } ++ args);
+
+    const ret_info = @typeInfo(ret);
+    if (comptime ret_info == .pointer and !ret_info.pointer.is_allowzero) {
+        assert(ret_value != null);
+    }
+
+    return ret_value;
 }

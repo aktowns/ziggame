@@ -7,7 +7,8 @@ const assert = std.debug.assert;
 pub const c = @import("../native/macos/cinclude.zig").c;
 
 const class = @import("../native/macos/Class.zig");
-const send = @import("../native/macos/objc_helper.zig").send;
+const objc = @import("../native/macos/objc_helper.zig");
+const send = objc.send;
 
 app: c.id,
 window: c.id,
@@ -53,6 +54,46 @@ const NSBackingStoreType = struct {
     const NSBackingStoreRetained: c_ulong = 0;
     const NSBackingStoreNonretained: c_ulong = 1;
     const NSBackingStoreBuffered: c_ulong = 2;
+};
+
+const NSEventType = enum(c_ulong) {
+    NSEventTypeLeftMouseDown = 1,
+    NSEventTypeLeftMouseUp = 2,
+    NSEventTypeRightMouseDown = 3,
+    NSEventTypeRightMouseUp = 4,
+    NSEventTypeMouseMoved = 5,
+    NSEventTypeLeftMouseDragged = 6,
+    NSEventTypeRightMouseDragged = 7,
+    NSEventTypeMouseEntered = 8,
+    NSEventTypeMouseExited = 9,
+    NSEventTypeKeyDown = 10,
+    NSEventTypeKeyUp = 11,
+    NSEventTypeFlagsChanged = 12,
+    NSEventTypeAppKitDefined = 13,
+    NSEventTypeSystemDefined = 14,
+    NSEventTypeApplicationDefined = 15,
+    NSEventTypePeriodic = 16,
+    NSEventTypeCursorUpdate = 17,
+    NSEventTypeScrollWheel = 22,
+    NSEventTypeTabletPoint = 23,
+    NSEventTypeTabletProximity = 24,
+    NSEventTypeOtherMouseDown = 25,
+    NSEventTypeOtherMouseUp = 26,
+    NSEventTypeOtherMouseDragged = 27,
+    NSEventTypeGesture = 29,
+    NSEventTypeMagnify = 30,
+    NSEventTypeSwipe = 31,
+    NSEventTypeRotate = 18,
+    NSEventTypeBeginGesture = 19,
+    NSEventTypeEndGesture = 20,
+
+    NSEventTypeSmartMagnify = 32,
+    NSEventTypeQuickLook = 33,
+
+    NSEventTypePressure = 34,
+    NSEventTypeDirectTouch = 37,
+
+    NSEventTypeChangeMode = 38,
 };
 
 export fn on_resize(self: c.id, s: c.SEL, size: c.CGSize) c.CGSize {
@@ -192,9 +233,10 @@ pub fn setup(self: *@This()) void {
 }
 
 pub fn dispatch(self: *@This()) i32 {
+    std.Thread.sleep(std.time.ns_per_ms * 100);
     while (true) {
-        const pool = send(class.alloc(self.cc.NSAutoreleasePool), c.id, "init", .{});
-        defer send(pool, void, "release", .{});
+        const pool = objc.init(class.alloc(self.cc.NSAutoreleasePool));
+        defer objc.release(pool);
 
         const event = send(
             self.app,
@@ -212,11 +254,17 @@ pub fn dispatch(self: *@This()) i32 {
             break;
         }
 
-        std.log.debug("Window event: {?*}", .{event});
+        const typ = send(event, c_uint, "type", .{});
+        const event_type: NSEventType = @enumFromInt(typ);
+
+        //NSPoint p = ((NSPoint(*)(id, SEL)) objc_msgSend)(e, sel_registerName("locationInWindow"));
+        const p = send(event, c.CGPoint, "locationInWindow", .{});
+
+        std.log.debug("Window event: {?*} {?} {?}", .{ event, event_type, p });
 
         send(self.app, void, "sendEvent:", .{event});
     }
 
-    send(self.view, void, "setNeedsDisplay:", .{YES});
+    // send(self.view, void, "setNeedsDisplay:", .{YES});
     return 0;
 }

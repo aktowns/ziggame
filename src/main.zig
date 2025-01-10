@@ -139,7 +139,7 @@ pub fn main() anyerror!void {
         .setup = setup,
     };
 
-    myGame.start();
+    try myGame.start();
 
     // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     // defer {

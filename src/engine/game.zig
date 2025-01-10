@@ -4,16 +4,10 @@ const Platform = @import("Platform.zig");
 const GraphicsPlatform = @import("GraphicsPlatform.zig");
 
 pub fn Game(comptime State: type) type {
-
-    // var platform = try Platform.getCurrentPlatform(allocator);
-    // defer platform.deinit();
-    // std.log.info("[Main] Using platform: {s}", .{platform.name});
-    // var gfx = try GraphicsPlatform.init(.{ .window_height = 480, .window_width = 640, .window_title = "ZenEng", .platform = &platform });
-    // defer gfx.deinit();
-    // try gfx.start();
-
     return struct {
         state: ?State = null,
+        platform: ?Platform = null,
+        graphics_platform: ?GraphicsPlatform = null,
         setup: *const fn () State,
         loop: *const fn (state: *State) void,
 
@@ -27,7 +21,21 @@ pub fn Game(comptime State: type) type {
             break :alloc alloc;
         };
 
-        pub fn start(self: *@This()) void {
+        pub fn start(self: *@This()) !void {
+            self.platform = try Platform.getCurrentPlatform(allocator);
+            self.graphics_platform = try GraphicsPlatform.init(.{ .window_height = 480, .window_width = 640, .window_title = "ZenEng", .platform = &self.platform.? });
+
+            std.log.info("[Main] Using platform: {s}", .{self.platform.?.name});
+
+            if (!builtin.target.isWasm()) {
+                while (self.platform.?.window.dispatch() == 0) {
+                    try self.graphics_platform.?.main_loop();
+                }
+            } else {
+                std.debug.panic("TODO: re-add wasm support");
+                // cincludes.emscripten.emscripten_set_main_loop_arg(animation_frame_cb, @constCast(self), 0, true);
+            }
+
             var state = self.setup();
             while (true) {
                 self.loop(&state);
@@ -35,7 +43,8 @@ pub fn Game(comptime State: type) type {
         }
 
         pub fn shutdown(self: *@This()) void {
-            _ = self;
+            self.graphics_platform.deinit();
+            self.platform.deinit();
             gpa.deinit();
         }
     };
