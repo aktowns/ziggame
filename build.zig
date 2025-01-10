@@ -57,7 +57,14 @@ fn setupBuildPaths(b: *Build, c: *Build.Module, target: Build.ResolvedTarget) vo
 }
 
 fn buildWgpu(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, wingman: *Build.Module) !*Build.Module {
-    const wgpu_mod = b.addModule("wgpu", .{ .root_source_file = b.path("src/wgpu/wgpu.zig"), .target = target, .optimize = optimize });
+    const wgpu_mod = b.addModule(
+        "wgpu",
+        .{
+            .root_source_file = b.path("lib/wgpu/wgpu.zig"),
+            .target = target,
+            .optimize = optimize,
+        },
+    );
     wgpu_mod.addImport("wingman", wingman);
 
     const wgpu = b.addStaticLibrary(.{ .name = "wgpu", .root_module = wgpu_mod });
@@ -70,7 +77,14 @@ fn buildWgpu(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, wi
 }
 
 fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode) !*Build.Module {
-    const wingman_mod = b.addModule("wingman", .{ .root_source_file = b.path("src/wingman/wingman.zig"), .target = target, .optimize = optimize });
+    const wingman_mod = b.addModule(
+        "wingman",
+        .{
+            .root_source_file = b.path("lib/wingman/wingman.zig"),
+            .target = target,
+            .optimize = optimize,
+        },
+    );
 
     const wingman = b.addStaticLibrary(.{ .name = "wingman", .root_module = wingman_mod });
     wingman.linkLibC();
@@ -79,10 +93,10 @@ fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode)
         .linux => {
             wingman.linkSystemLibrary("wayland-client");
 
-            wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-shell-protocol.c") });
-            wingman.addCSourceFile(.{ .file = b.path("src/wingman/window/c/xdg-decoration-unstable-v1.c") });
+            wingman.addCSourceFile(.{ .file = b.path("lib/wingman/platforms/linux/c/xdg-shell-protocol.c") });
+            wingman.addCSourceFile(.{ .file = b.path("lib/wingman/platforms/linux/c/xdg-decoration-unstable-v1.c") });
 
-            wingman.addIncludePath(b.path("src/wingman/window/c"));
+            wingman.addIncludePath(b.path("lib/wingman/platforms/linux/c"));
         },
         .macos => {
             wingman.linkFramework("Foundation");
@@ -96,7 +110,7 @@ fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode)
     }
 
     const wingman_demo_mod = b.createModule(.{
-        .root_source_file = b.path("src/wingman/demo.zig"),
+        .root_source_file = b.path("lib/wingman/demo.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -123,7 +137,7 @@ fn buildWingman(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode)
 
 fn buildNative(b: *Build, target: Build.ResolvedTarget, optimize: OptimizeMode, other_deps: []const struct { []const u8, *Build.Dependency }) anyerror!void {
     const resources_lib = b.addModule("resources", .{ .root_source_file = b.path("resources/manifest.zig"), .target = target, .optimize = optimize });
-    const engine_lib = b.addModule("engine", .{ .root_source_file = b.path("src/engine/engine.zig"), .target = target, .optimize = optimize });
+    const engine_lib = b.addModule("engine", .{ .root_source_file = b.path("lib/engine/engine.zig"), .target = target, .optimize = optimize });
     engine_lib.addImport("resources", resources_lib);
 
     const wingman_mod = try buildWingman(b, target, optimize);

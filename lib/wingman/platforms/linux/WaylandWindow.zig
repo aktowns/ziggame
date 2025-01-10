@@ -1,6 +1,7 @@
 pub const LinuxWayland = @This();
 
 const std = @import("std");
+const WindowOptions = @import("../../window/WindowOptions.zig");
 
 pub const c = @cImport({
     @cInclude("wayland-client.h");
@@ -170,7 +171,7 @@ pub const xdg_surface_listener: c.xdg_surface_listener = .{
     .configure = xdgSurfaceConfigure,
 };
 
-pub fn init(title: []const u8) @This() {
+pub fn init(window_options: *const WindowOptions) @This() {
     std.log.info("Starting LinuxWayland platform", .{});
     const display: *c.wl_display = c.wl_display_connect(null).?;
     const registry: *c.wl_registry = c.wl_display_get_registry(display).?;
@@ -178,7 +179,7 @@ pub fn init(title: []const u8) @This() {
     return .{
         .display = display,
         .registry = registry,
-        .title = title,
+        .title = window_options.title,
     };
 }
 

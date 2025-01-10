@@ -1,13 +1,13 @@
 pub const MacOSWindow = @This();
 
 const std = @import("std");
-const WindowOptions = @import("WindowOptions.zig");
+const WindowOptions = @import("../../window/WindowOptions.zig");
 const assert = std.debug.assert;
 
-pub const c = @import("../native/macos/cinclude.zig").c;
+pub const c = @import("./native/cinclude.zig").c;
 
-const class = @import("../native/macos/Class.zig");
-const objc = @import("../native/macos/objc_helper.zig");
+const class = @import("./native/Class.zig");
+const objc = @import("./native/objc_helper.zig");
 const send = objc.send;
 
 app: c.id,
